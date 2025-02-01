@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
+const { OpenAIApi, Configuration } = require("openai");
 
 const app = express();
 app.use(express.json());
