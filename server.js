@@ -23,6 +23,16 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    calling_status: 'Ready to receive calls',
+    active_calls: llamadasActivas.size
+  });
+});
+
 const handleWebhook = async (req, res) => {
   const event = req.body;
   console.log('📞 Evento Telnyx recibido:', JSON.stringify(event, null, 2));
