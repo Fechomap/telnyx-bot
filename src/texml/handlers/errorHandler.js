@@ -49,7 +49,13 @@ const ERROR_RETRY_CONFIG = {
   [ERROR_TYPES.SERVICE_UNAVAILABLE]: 1,
   [ERROR_TYPES.DATABASE_ERROR]: 1,
   [ERROR_TYPES.NETWORK_ERROR]: 1,
-  [ERROR_TYPES.API_ERROR]: 1
+  [ERROR_TYPES.API_ERROR]: 1,
+  
+  // Añadir las configuraciones faltantes:
+  [ERROR_TYPES.SESSION_EXPIRED]: 1,
+  [ERROR_TYPES.SESSION_INVALID]: 1
+  
+  // CALL_DROPPED y CALL_QUALITY se excluyen explícitamente en las pruebas
 };
 
 /**
