@@ -123,18 +123,17 @@ const {
       
       it('should handle errors in main expedition API call', async () => {
         // Configurar stub para simular error al obtener expediente
-        telnyxServiceStub.obtenerExpediente.rejects(new Error('API error'));
+        const apiError = new Error('API error');
+        telnyxServiceStub.obtenerExpediente.rejects(apiError);
         
-        // Ejecutar consulta unificada
-        let error;
         try {
           await consultaUnificada('54321');
-        } catch (err) {
-          error = err;
+          // Si llegamos aquí, el test debería fallar
+          expect.fail('Expected an error but none was thrown');
+        } catch (error) {
+          // Verificar que ocurrió un error
+          expect(error).to.be.an.instanceOf(Error);
         }
-        
-        // Verificar que ocurrió un error
-        expect(error).to.be.an.instanceOf(Error);
       });
     });
     

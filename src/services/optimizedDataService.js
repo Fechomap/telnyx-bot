@@ -69,7 +69,16 @@ async function consultaUnificada(expediente) {
     const cachedData = checkCache(expediente);
     if (cachedData) return cachedData;
     
-    // Establecer timeout para cada consulta individual
+    // Obtener datos generales primero - esto puede fallar y propagará el error
+    const datosGenerales = await telnyxService.obtenerExpediente(expediente);
+    
+    // Verificar si el expediente existe
+    if (!datosGenerales) {
+      console.log(`❌ Expediente no encontrado: ${expediente}`);
+      return null;
+    }
+    
+    // Establecer timeout para consultas secundarias
     const QUERY_TIMEOUT = 5000; // 5 segundos
     
     // Función para crear promesa con timeout
@@ -82,19 +91,13 @@ async function consultaUnificada(expediente) {
       ]);
     };
     
-    // Realizar todas las consultas en paralelo con timeout
+    // Realizar el resto de consultas en paralelo con manejo de errores
     const [
-      datosGenerales,
       costos,
       unidad,
       ubicacion,
       tiempos
     ] = await Promise.all([
-      withTimeout(telnyxService.obtenerExpediente(expediente), QUERY_TIMEOUT)
-        .catch(error => {
-          console.error(`⚠️ Error al obtener datos generales: ${error.message}`);
-          return null;
-        }),
       withTimeout(telnyxService.obtenerExpedienteCosto(expediente), QUERY_TIMEOUT)
         .catch(error => {
           console.error(`⚠️ Error al obtener costos: ${error.message}`);
@@ -116,12 +119,6 @@ async function consultaUnificada(expediente) {
           return {};
         })
     ]);
-    
-    // Verificar si el expediente existe
-    if (!datosGenerales) {
-      console.log(`❌ Expediente no encontrado: ${expediente}`);
-      return null;
-    }
     
     // Construir objeto unificado con todos los datos
     const datosUnificados = {
