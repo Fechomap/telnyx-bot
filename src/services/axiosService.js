@@ -41,7 +41,8 @@ class AxiosService {
     }
 
     try {
-      const response = await this.api(config);
+      // Cambiar de this.api(config) a this.api.request(config)
+      const response = await this.api.request(config);
       return response.data;
     } catch (error) {
       this.handleError(error);
