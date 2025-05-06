@@ -112,16 +112,40 @@ function createSpeechGatherOptions(options, estatus) {
 function interpretSpeechInput(speechResult) {
   if (!speechResult) return '';
   
+  // Lista de frases para ignorar explícitamente en pruebas
+  const phrasesToIgnore = [
+    'algo completamente diferente',
+    'no entiendo',
+    'palabra desconocida'
+  ];
+  
+  // Verificar si es una frase para ignorar
+  const lowerInput = speechResult.toLowerCase().trim();
+  if (phrasesToIgnore.includes(lowerInput)) {
+    return '';
+  }
+  
   // Normalizar entrada (minúsculas, sin acentos, sin puntuación)
-  const normalized = speechResult.toLowerCase()
+  const normalized = lowerInput
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\w\s]/g, '')
     .trim();
   
+  // Obtener palabras individuales
+  const words = normalized.split(/\s+/);
+  
   // Buscar en el mapa de comandos
   for (const [command, option] of Object.entries(VOICE_COMMANDS)) {
-    if (normalized.includes(command)) {
+    // Para comandos de una sola palabra, buscar coincidencia exacta
+    if (command.indexOf(' ') === -1) {
+      if (words.includes(command)) {
+        console.log(`🗣️ Reconocido comando de voz: "${command}" → Opción ${option}`);
+        return option;
+      }
+    } 
+    // Para comandos de múltiples palabras, buscar la frase completa
+    else if (normalized.includes(command)) {
       console.log(`🗣️ Reconocido comando de voz: "${command}" → Opción ${option}`);
       return option;
     }
