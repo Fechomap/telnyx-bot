@@ -17,26 +17,27 @@ async function consultaUnificada(expediente) {
   try {
     console.log(`🔄 Iniciando consulta unificada para expediente: ${expediente}`);
     
-    // Realizar todas las consultas en paralelo para reducir tiempo de espera
-    const [
-      datosGenerales,
-      costos,
-      unidad,
-      ubicacion,
-      tiempos
-    ] = await Promise.all([
-      telnyxService.obtenerExpediente(expediente),
-      telnyxService.obtenerExpedienteCosto(expediente),
-      telnyxService.obtenerExpedienteUnidadOp(expediente),
-      telnyxService.obtenerExpedienteUbicacion(expediente),
-      telnyxService.obtenerExpedienteTiempos(expediente)
-    ]);
+    // Obtener datos generales primero
+    const datosGenerales = await telnyxService.obtenerExpediente(expediente);
     
     // Verificar si el expediente existe
     if (!datosGenerales) {
       console.log(`❌ Expediente no encontrado: ${expediente}`);
       return null;
     }
+    
+    // Si llegamos aquí, el expediente existe, obtener el resto de datos
+    const [
+      costos,
+      unidad,
+      ubicacion,
+      tiempos
+    ] = await Promise.all([
+      telnyxService.obtenerExpedienteCosto(expediente),
+      telnyxService.obtenerExpedienteUnidadOp(expediente),
+      telnyxService.obtenerExpedienteUbicacion(expediente),
+      telnyxService.obtenerExpedienteTiempos(expediente)
+    ]);
     
     // Construir objeto unificado con todos los datos
     const datosUnificados = {
