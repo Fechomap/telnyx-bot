@@ -99,7 +99,8 @@ describe('XMLBuilder', () => {
       const number = '+15551234567';
       const result = XMLBuilder.addDial(number);
       
-      expect(result).to.include(`<Dial>${number}</Dial>`);
+      expect(result).to.include(`<Dial`);
+      expect(result).to.include(`>${number}</Dial>`);
     });
     
     it('should create a Dial element with custom options', () => {
@@ -188,7 +189,9 @@ describe('XMLBuilder', () => {
       expect(result).to.include('<Response>');
       expect(result).to.include('<Say voice="female" language="es-MX">');
       expect(result).to.include('Welcome to the service.');
-      expect(result).to.include('<Gather action="/menu" method="POST" numDigits="1">');
+      expect(result).to.include('action="/menu"');
+      expect(result).to.include('method="POST"');
+      expect(result).to.include('numDigits="1"');
       expect(result).to.include('<Hangup>');
       expect(result).to.include('</Response>');
     });

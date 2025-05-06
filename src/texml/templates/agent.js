@@ -3,6 +3,7 @@
  * Genera XML para presentar opciones al usuario según estado del expediente
  */
 const XMLBuilder = require('../helpers/xmlBuilder');
+const config = require('../../config/texml');
 
 /**
  * Genera XML para el menú principal después de validar expediente
@@ -124,10 +125,46 @@ function generateErrorXML() {
   return XMLBuilder.buildResponse([sayElement, hangupElement]);
 }
 
+/**
+ * Genera XML para transferir a un agente humano
+ * @param {string} sessionId - ID de la sesión
+ * @returns {string} Documento TeXML completo
+ */
+function generateAgentTransferXML(sessionId) {
+  const transferMessage = "Transfiriendo su llamada a un agente. Por favor espere un momento...";
+  const sayElement = XMLBuilder.addSay(transferMessage);
+  
+  // Configurar número de agente (desde config)
+  const agentNumber = config?.transfer?.agentNumber || '+15551234567';
+  
+  const dialElement = XMLBuilder.addDial(agentNumber, {
+    callerId: config?.service?.callerId,
+    timeout: '30'
+  });
+  
+  return XMLBuilder.buildResponse([sayElement, dialElement]);
+}
+
+/**
+ * Genera XML para ofrecer callback cuando no hay agentes disponibles
+ * @param {string} sessionId - ID de la sesión
+ * @returns {string} Documento TeXML completo
+ */
+function generateCallbackXML(sessionId) {
+  const callbackMessage = "Todos nuestros agentes están ocupados en este momento. Un representante se comunicará con usted lo antes posible. Gracias por su paciencia.";
+  const sayElement = XMLBuilder.addSay(callbackMessage);
+  
+  const hangupElement = XMLBuilder.addHangup();
+  
+  return XMLBuilder.buildResponse([sayElement, hangupElement]);
+}
+
 module.exports = {
   generateMainMenuXML,
   generateResponseMenuXML,
   generateExpedienteNotFoundXML,
   generateSessionExpiredXML,
-  generateErrorXML
+  generateErrorXML,
+  generateAgentTransferXML,
+  generateCallbackXML
 };
