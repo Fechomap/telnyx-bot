@@ -1,4 +1,5 @@
-const SessionCache = require('../../../src/cache/sessionCache');
+const sessionCacheModule = require('../../../src/cache/sessionCache');
+const { SessionCache } = sessionCacheModule;
 
 describe('SessionCache', () => {
   let sessionCache;

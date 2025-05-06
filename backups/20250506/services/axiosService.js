@@ -41,7 +41,7 @@ class AxiosService {
     }
 
     try {
-      const response = await this.api(config);
+      const response = await this.api.request(config);
       return response.data;
     } catch (error) {
       this.handleError(error);
