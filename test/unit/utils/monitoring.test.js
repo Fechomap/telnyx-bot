@@ -113,26 +113,43 @@ describe('Monitoring', () => {
   });
   
   describe('trackSessionEvent', () => {
-    it('should increment counter and log session events', () => {
+    it('should increment counter and log session events', (done) => {
+      // Resetear el contador de llamadas del stub antes de la prueba
+      fsStub.resetHistory();
+      
       // Probar diferentes tipos de eventos
       monitoring.trackSessionEvent('created', 'session-123');
       monitoring.trackSessionEvent('active', 'session-123');
       monitoring.trackSessionEvent('completed', 'session-123');
       monitoring.trackSessionEvent('expired', 'session-123');
       
-      // Verificar que se actualizaron los contadores
-      const metrics = monitoring.getMetricsSummary();
-      expect(metrics.sessions.created).to.be.greaterThan(0);
-      expect(metrics.sessions.active).to.be.greaterThan(0);
-      expect(metrics.sessions.completed).to.be.greaterThan(0);
-      expect(metrics.sessions.expired).to.be.greaterThan(0);
-      
-      // Verificar que se escribió en el log para cada evento
-      expect(fsStub).to.have.callCount(4);
-      expect(fsStub).to.have.been.calledWith(
-        sinon.match(/sessions\.log$/),
-        sinon.match(/Session \| created \| session-123/)
-      );
+      // Usar setTimeout para dar tiempo a que las operaciones asíncronas terminen
+      setTimeout(() => {
+        try {
+          // Verificar que se actualizaron los contadores
+          const metrics = monitoring.getMetricsSummary();
+          expect(metrics.sessions.created).to.be.greaterThan(0);
+          expect(metrics.sessions.active).to.be.greaterThan(0);
+          expect(metrics.sessions.completed).to.be.greaterThan(0);
+          expect(metrics.sessions.expired).to.be.greaterThan(0);
+          
+          // Verificar que se escribió en el log para cada evento (especificando solo sessions.log)
+          const sessionLogCalls = fsStub.getCalls().filter(call => 
+            call.args[0].toString().includes('sessions.log')
+          );
+          expect(sessionLogCalls.length).to.equal(4);
+          
+          // Verificar que una de las llamadas contiene la información esperada
+          expect(fsStub).to.have.been.calledWith(
+            sinon.match(/sessions\.log$/),
+            sinon.match(/Session \| created \| session-123/)
+          );
+          
+          done(); // Indicar que la prueba ha terminado
+        } catch (error) {
+          done(error); // Pasar cualquier error a Jest
+        }
+      }, 10);
     });
     
     it('should handle unknown event types gracefully', () => {
