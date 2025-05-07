@@ -49,7 +49,18 @@ async function handleExpediente(req, res) {
         // Aquí se implementaría la redirección al flujo de cotización
         // Por ahora, informamos que no está disponible
         const notAvailableMessage = "Lo sentimos, la cotización de servicios no está disponible actualmente por este medio. Por favor, intente de nuevo seleccionando consulta de expediente.";
-        const sayElement = XMLBuilder.addSay(notAvailableMessage);
+        
+        // Usar Amazon Polly con voz Mia
+        const sayOptions = {
+          provider: 'amazon',
+          voice: 'Mia',
+          language: 'es-MX',
+          engine: 'neural'
+        };
+        
+        console.log('🔊 Usando voz Amazon Polly Mia para mensaje de servicio no disponible');
+        
+        const sayElement = XMLBuilder.addSay(notAvailableMessage, sayOptions);
         const redirectElement = XMLBuilder.addRedirect("/welcome");
         const responseXML = XMLBuilder.buildResponse([sayElement, redirectElement]);
         
@@ -402,6 +413,11 @@ async function handleMenu(req, res) {
  */
 async function handleAIResponse(req, res) {
   try {
+    // Forzar deshabilitación del AI Assistant independientemente de la configuración
+    console.log('⚠️ AI Assistant está deshabilitado');
+    // Redirigir al menú principal o a la bienvenida
+    return sendResponse(res, RESPONSE_TYPES.WELCOME);
+    
     const sessionId = req.query.sessionId || '';
     
     // Obtener texto de la respuesta del usuario
@@ -423,20 +439,22 @@ async function handleAIResponse(req, res) {
     
     // Generar respuesta XML con la respuesta del AI
     const sayElement = XMLBuilder.addSay(aiResponse, {
-      voice: 'female',
-      language: 'es-MX',
-      engine: 'neural'
+      provider: config.tts.provider,
+      voice: config.tts.voice,
+      language: config.tts.language,
+      engine: config.tts.engine
     });
     
     // Configurar opciones para continuar conversación
     const aiOptions = {
       aiProvider: 'telnyx',
-      model: 'meta-llama/Meta-Llama-3-1-70B-Instruct',
+      model: config.ai.model || 'meta-llama/Meta-Llama-3-1-70B-Instruct',
       action: `/ai-response?sessionId=${sessionId}`,
       fallbackAction: `/menu?sessionId=${sessionId}`,
-      language: 'es-MX',
-      voice: 'female',
-      maxTurns: '5',
+      language: config.tts.language,
+      voice: config.tts.voice,
+      provider: config.tts.provider,
+      maxTurns: config.ai.maxTurns || '5',
       interruptible: 'true'
     };
     

@@ -23,8 +23,10 @@ module.exports = {
     
     // Configuración de Text-to-Speech
     tts: {
-      voice: 'female',
-      language: 'es-MX'
+      provider: 'amazon', // Usar Amazon Polly como proveedor
+      voice: 'Mia',      // Voz femenina neural de Amazon Polly para español mexicano
+      language: 'es-MX',
+      engine: 'neural'   // Usar el motor neural para mejor calidad
     },
     
     // Configuración de tiempos
@@ -39,5 +41,12 @@ module.exports = {
       enabled: true,
       agentNumber: process.env.AGENT_NUMBER || '',
       maxWaitTime: 60 // segundos máximos de espera para un agente
+    },
+    
+    // Configuración de AI Assistant
+    ai: {
+      enabled: false, // Deshabilitar AI Assistant para evitar conflictos con el flujo normal
+      model: 'meta-llama/Meta-Llama-3-1-70B-Instruct',
+      maxTurns: 5
     }
   };

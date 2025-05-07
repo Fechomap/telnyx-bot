@@ -258,8 +258,10 @@ async function speakText(callControlId, text) {
     `https://api.telnyx.com/v2/calls/${encodedId}/actions/speak`,
     {
       payload: text,
-      voice: "female",
-      language: "es-MX"
+      voice: "Mia",
+      language: "es-MX",
+      provider: "amazon",
+      engine: "neural"
     },
     { headers: getTelnyxHeaders() }
   );
@@ -271,8 +273,10 @@ async function gatherDigits(callControlId, prompt, validDigits, maxDigits) {
       `https://api.telnyx.com/v2/calls/${encodedId}/actions/gather_using_speak`,
       {
         payload: prompt,
-        voice: "female",
+        voice: "Mia",
         language: "es-MX",
+        provider: "amazon",
+        engine: "neural",
         valid_digits: validDigits,
         max_digits: maxDigits,
         inter_digit_timeout: 7 // Aumentado de 5 a 7 segundos

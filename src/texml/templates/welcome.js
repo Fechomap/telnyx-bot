@@ -16,12 +16,16 @@ function generateWelcomeXML() {
     "Para solicitar o cotizar un servicio, presione 2 o diga 'servicio'.";
   
   // Configurar opciones avanzadas para voz más natural
+  // Forzar configuración de Amazon Polly con voz Mia
   const sayOptions = {
-    voice: 'female',
+    provider: 'amazon',
+    voice: 'Mia',
     language: 'es-MX',
     engine: 'neural', // Voz más natural
     rate: '0.95'      // Ligeramente más lento para mejor comprensión
   };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de bienvenida');
   
   // Crear elemento Say con las opciones mejoradas
   const sayElement = XMLBuilder.addSay(welcomeMessage, sayOptions);
@@ -68,7 +72,8 @@ function generateWelcomeWithAIXML() {
     action: '/ai-response',
     fallbackAction: '/expediente',
     language: 'es-MX',
-    voice: 'female',
+    voice: 'Mia',
+    provider: 'amazon',
     maxTurns: '5',
     interruptible: 'true'
   };
@@ -91,10 +96,13 @@ function generateRequestExpedienteXML() {
   
   // Configurar opciones avanzadas para voz
   const sayOptions = {
-    voice: 'female',
+    provider: 'amazon',
+    voice: 'Mia',
     language: 'es-MX',
     engine: 'neural'
   };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para solicitud de expediente');
   
   // Crear elemento Say
   const sayElement = XMLBuilder.addSay(requestMessage, sayOptions);

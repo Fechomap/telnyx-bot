@@ -22,7 +22,10 @@ describe('XMLBuilder', () => {
       const text = 'Hello, this is a test';
       const result = XMLBuilder.addSay(text);
       
-      expect(result).to.include('<Say voice="female" language="es-MX">');
+      expect(result).to.include('provider="amazon"');
+      expect(result).to.include('voice="Mia"');
+      expect(result).to.include('language="es-MX"');
+      expect(result).to.include('engine="neural"');
       expect(result).to.include('Hello, this is a test');
       expect(result).to.include('</Say>');
     });
@@ -30,13 +33,18 @@ describe('XMLBuilder', () => {
     it('should create a Say element with custom options', () => {
       const text = 'Hello, custom voice';
       const options = {
-        voice: 'male',
-        language: 'en-US'
+        provider: 'amazon',
+        voice: 'Lupe',
+        language: 'en-US',
+        engine: 'standard'
       };
       
       const result = XMLBuilder.addSay(text, options);
       
-      expect(result).to.include('<Say voice="male" language="en-US">');
+      expect(result).to.include('provider="amazon"');
+      expect(result).to.include('voice="Lupe"');
+      expect(result).to.include('language="en-US"');
+      expect(result).to.include('engine="standard"');
       expect(result).to.include('Hello, custom voice');
     });
     
@@ -187,7 +195,7 @@ describe('XMLBuilder', () => {
       
       expect(result).to.include('<?xml version="1.0" encoding="UTF-8"?>');
       expect(result).to.include('<Response>');
-      expect(result).to.include('<Say voice="female" language="es-MX">');
+      expect(result).to.include('<Say provider="amazon" voice="Mia" language="es-MX" engine="neural">');
       expect(result).to.include('Welcome to the service.');
       expect(result).to.include('action="/menu"');
       expect(result).to.include('method="POST"');

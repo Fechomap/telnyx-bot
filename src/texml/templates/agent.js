@@ -28,8 +28,18 @@ function generateMainMenuXML(datosFormateados, sessionId, estatus) {
   // Crear mensaje completo
   const fullMessage = `${datosFormateados.mensajeGeneral} ${menuOptions}`;
   
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para menú principal del agente');
+  
   // Crear elementos XML
-  const sayElement = XMLBuilder.addSay(fullMessage);
+  const sayElement = XMLBuilder.addSay(fullMessage, sayOptions);
   
   const gatherOptions = {
     action: `/respuesta?sessionId=${sessionId}`,
@@ -66,9 +76,19 @@ function generateResponseMenuXML(mensajeRespuesta, sessionId, estatus) {
     validDigits = "123409";
   }
   
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para menú de respuesta del agente');
+  
   // Crear elementos XML
-  const sayResponseElement = XMLBuilder.addSay(mensajeRespuesta);
-  const sayMenuElement = XMLBuilder.addSay(menuOptions);
+  const sayResponseElement = XMLBuilder.addSay(mensajeRespuesta, sayOptions);
+  const sayMenuElement = XMLBuilder.addSay(menuOptions, sayOptions);
   
   const gatherOptions = {
     action: `/respuesta?sessionId=${sessionId}`,
@@ -95,7 +115,18 @@ function generateResponseMenuXML(mensajeRespuesta, sessionId, estatus) {
  */
 function generateExpedienteNotFoundXML() {
   const notFoundMessage = "Expediente no encontrado. Intente nuevamente.";
-  const sayElement = XMLBuilder.addSay(notFoundMessage);
+  
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de expediente no encontrado');
+  
+  const sayElement = XMLBuilder.addSay(notFoundMessage, sayOptions);
   const redirectElement = XMLBuilder.addRedirect("/expediente");
   
   return XMLBuilder.buildResponse([sayElement, redirectElement]);
@@ -107,7 +138,18 @@ function generateExpedienteNotFoundXML() {
  */
 function generateSessionExpiredXML() {
   const expiredMessage = "Su sesión ha expirado. Por favor, inicie nuevamente.";
-  const sayElement = XMLBuilder.addSay(expiredMessage);
+  
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de sesión expirada');
+  
+  const sayElement = XMLBuilder.addSay(expiredMessage, sayOptions);
   const redirectElement = XMLBuilder.addRedirect("/welcome");
   
   return XMLBuilder.buildResponse([sayElement, redirectElement]);
@@ -119,7 +161,18 @@ function generateSessionExpiredXML() {
  */
 function generateErrorXML() {
   const errorMessage = "Ocurrió un error al procesar su solicitud. Intente nuevamente más tarde.";
-  const sayElement = XMLBuilder.addSay(errorMessage);
+  
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de error');
+  
+  const sayElement = XMLBuilder.addSay(errorMessage, sayOptions);
   const hangupElement = XMLBuilder.addHangup();
   
   return XMLBuilder.buildResponse([sayElement, hangupElement]);
@@ -132,7 +185,18 @@ function generateErrorXML() {
  */
 function generateAgentTransferXML(sessionId) {
   const transferMessage = "Transfiriendo su llamada a un agente. Por favor espere un momento...";
-  const sayElement = XMLBuilder.addSay(transferMessage);
+  
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de transferencia a agente');
+  
+  const sayElement = XMLBuilder.addSay(transferMessage, sayOptions);
   
   // Configurar número de agente (desde config)
   const agentNumber = config?.transfer?.agentNumber || '+15551234567';
@@ -152,7 +216,18 @@ function generateAgentTransferXML(sessionId) {
  */
 function generateCallbackXML(sessionId) {
   const callbackMessage = "Todos nuestros agentes están ocupados en este momento. Un representante se comunicará con usted lo antes posible. Gracias por su paciencia.";
-  const sayElement = XMLBuilder.addSay(callbackMessage);
+  
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de callback');
+  
+  const sayElement = XMLBuilder.addSay(callbackMessage, sayOptions);
   
   const hangupElement = XMLBuilder.addHangup();
   

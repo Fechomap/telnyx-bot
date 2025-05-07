@@ -167,7 +167,17 @@ function generateUnrecognizedInputXML(sessionId, estatus) {
   const voicePrompt = generateVoicePrompt(estatus);
   const fullMessage = `${unrecognizedMessage} ${voicePrompt}`;
   
-  const sayElement = XMLBuilder.addSay(fullMessage);
+  // Usar Amazon Polly con voz Mia para respuestas de voz no reconocida
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de entrada no reconocida');
+  
+  const sayElement = XMLBuilder.addSay(fullMessage, sayOptions);
   
   // Opciones del menú según estado
   let validDigits = (estatus === 'Concluido') ? '1230' : '12340';

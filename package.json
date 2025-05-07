@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node texmlServer.js",
+    "legacy": "node server.js",
     "dev": "nodemon src/newServer.js",
-    "texml": "nodemon texmlServer.js",
+    "texml-dev": "nodemon texmlServer.js",
     "test": "jest",
     "test:unit": "jest test/unit",
     "test:integration": "jest test/integration",

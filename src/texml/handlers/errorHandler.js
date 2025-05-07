@@ -128,8 +128,18 @@ function generateErrorResponse(errorType, options = {}) {
   // Elementos a incluir en la respuesta
   const elements = [];
   
+  // Configurar opciones de voz para Amazon Polly
+  const sayOptions = {
+    provider: 'amazon',
+    voice: 'Mia',
+    language: 'es-MX',
+    engine: 'neural'
+  };
+  
+  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de error');
+  
   // Agregar mensaje de error
-  elements.push(XMLBuilder.addSay(errorMessage));
+  elements.push(XMLBuilder.addSay(errorMessage, sayOptions));
   
   // Si se alcanzó el máximo de intentos o no hay acción definida
   if (isMaxAttemptsReached || !errorAction) {
@@ -139,21 +149,21 @@ function generateErrorResponse(errorType, options = {}) {
       
       // Mensaje de finalización para errores críticos
       const finalMessage = "Lamentamos los inconvenientes. Su consulta ha sido registrada y nos comunicaremos con usted a la brevedad.";
-      elements.push(XMLBuilder.addSay(finalMessage));
+      elements.push(XMLBuilder.addSay(finalMessage, sayOptions));
       
       // Finalizar llamada
       elements.push(XMLBuilder.addHangup());
     } else if (options.sessionId) {
       // Si hay una sesión activa, ofrecer opciones
       const redirectMessage = "Le redirigiremos al menú principal.";
-      elements.push(XMLBuilder.addSay(redirectMessage));
+      elements.push(XMLBuilder.addSay(redirectMessage, sayOptions));
       
       // Redirigir a menú principal con la sesión existente
       elements.push(XMLBuilder.addRedirect(`/menu?sessionId=${options.sessionId}`));
     } else {
       // Redirigir al inicio para reiniciar
       const restartMessage = "Iniciaremos nuevamente.";
-      elements.push(XMLBuilder.addSay(restartMessage));
+      elements.push(XMLBuilder.addSay(restartMessage, sayOptions));
       
       elements.push(XMLBuilder.addRedirect('/welcome'));
     }

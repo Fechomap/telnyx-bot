@@ -32,6 +32,7 @@ function generateResponse(type, params = {}) {
   
   switch (type) {
     case RESPONSE_TYPES.WELCOME:
+      // Siempre usar la versión estándar, nunca la versión con AI
       return welcomeTemplates.generateWelcomeXML();
       
     case RESPONSE_TYPES.REQUEST_EXPEDIENTE:

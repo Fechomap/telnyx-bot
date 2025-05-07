@@ -78,7 +78,12 @@ app.post('/validar-expediente', async (req, res) => {
       
       // Crear respuesta XML para expediente no encontrado
       const notFoundMessage = "Expediente no encontrado. Intente nuevamente.";
-      const sayElement = XMLBuilder.addSay(notFoundMessage);
+      const sayElement = XMLBuilder.addSay(notFoundMessage, {
+        provider: 'amazon',
+        voice: 'Mia',
+        language: 'es-MX',
+        engine: 'neural'
+      });
       const redirectElement = XMLBuilder.addRedirect("/expediente");
       const responseXML = XMLBuilder.buildResponse([sayElement, redirectElement]);
       
@@ -112,7 +117,12 @@ app.post('/validar-expediente', async (req, res) => {
     const fullMessage = `${datosFormateados.mensajeGeneral} ${menuOptions}`;
     
     // Crear respuesta XML
-    const sayElement = XMLBuilder.addSay(fullMessage);
+    const sayElement = XMLBuilder.addSay(fullMessage, {
+      provider: 'amazon',
+      voice: 'Mia',
+      language: 'es-MX',
+      engine: 'neural'
+    });
     const gatherOptions = {
       action: `/respuesta?sessionId=${sessionId}`,
       method: 'POST',
@@ -130,7 +140,12 @@ app.post('/validar-expediente', async (req, res) => {
     
     // Crear respuesta XML de error
     const errorMessage = "Ocurrió un error al procesar su solicitud. Intente nuevamente.";
-    const sayElement = XMLBuilder.addSay(errorMessage);
+    const sayElement = XMLBuilder.addSay(errorMessage, {
+      provider: 'amazon',
+      voice: 'Mia',
+      language: 'es-MX',
+      engine: 'neural'
+    });
     const redirectElement = XMLBuilder.addRedirect("/expediente");
     const responseXML = XMLBuilder.buildResponse([sayElement, redirectElement]);
     
@@ -159,7 +174,12 @@ app.post('/respuesta', (req, res) => {
       
       // Crear respuesta XML para sesión no encontrada
       const notFoundMessage = "Su sesión ha expirado. Por favor, inicie nuevamente.";
-      const sayElement = XMLBuilder.addSay(notFoundMessage);
+      const sayElement = XMLBuilder.addSay(notFoundMessage, {
+        provider: 'amazon',
+        voice: 'Mia',
+        language: 'es-MX',
+        engine: 'neural'
+      });
       const redirectElement = XMLBuilder.addRedirect("/welcome");
       const responseXML = XMLBuilder.buildResponse([sayElement, redirectElement]);
       
@@ -211,8 +231,18 @@ app.post('/respuesta', (req, res) => {
     }
     
     // Crear elementos XML para la respuesta
-    const sayResponseElement = XMLBuilder.addSay(mensajeRespuesta);
-    const sayMenuElement = XMLBuilder.addSay(menuOptions);
+    const sayResponseElement = XMLBuilder.addSay(mensajeRespuesta, {
+      provider: 'amazon',
+      voice: 'Mia',
+      language: 'es-MX',
+      engine: 'neural'
+    });
+    const sayMenuElement = XMLBuilder.addSay(menuOptions, {
+      provider: 'amazon',
+      voice: 'Mia',
+      language: 'es-MX',
+      engine: 'neural'
+    });
     
     const gatherOptions = {
       action: `/respuesta?sessionId=${sessionId}`,
@@ -238,7 +268,12 @@ app.post('/respuesta', (req, res) => {
     
     // Crear respuesta XML de error
     const errorMessage = "Ocurrió un error al procesar su solicitud. Intente nuevamente.";
-    const sayElement = XMLBuilder.addSay(errorMessage);
+    const sayElement = XMLBuilder.addSay(errorMessage, {
+      provider: 'amazon',
+      voice: 'Mia',
+      language: 'es-MX',
+      engine: 'neural'
+    });
     const redirectElement = XMLBuilder.addRedirect("/welcome");
     const responseXML = XMLBuilder.buildResponse([sayElement, redirectElement]);
     

@@ -26,13 +26,20 @@ class XMLBuilder {
    * @returns {string} Elemento Say en XML
    */
   static addSay(text, options = {}) {
-    const voice = options.voice || 'female';
-    const language = options.language || 'es-MX';
-    const engine = options.engine || 'neural'; // Voz más natural con motor neural
-    const rate = options.rate || '1.0'; // Velocidad de habla (0.5 a 4.0)
-    const pitch = options.pitch || '1.0'; // Tono de voz (0.5 a 2.0)
+    // Importar configuración TTS
+    const config = require('../../config/texml');
+    const ttsConfig = config.tts || {};
     
-    let sayAttrs = `voice="${voice}" language="${language}" engine="${engine}"`;
+    // Usar opciones proporcionadas o valores de configuración
+    const provider = 'amazon';             // Forzar uso exclusivo de Amazon Polly
+    const voice = 'Mia';                   // Voz predeterminada (puedes cambiarla si prefieres otra)
+    const language = 'es-MX';              // Español mexicano
+    const engine = 'neural';              // Motor de síntesis avanzado de Polly
+    const rate = '1.0';                    // Velocidad normal
+    const pitch = '1.0';                   // Tono neutral
+    
+    // Construir atributos para el elemento Say
+    let sayAttrs = `provider="${provider}" voice="${voice}" language="${language}" engine="${engine}"`;
     if (rate !== '1.0') sayAttrs += ` rate="${rate}"`;
     if (pitch !== '1.0') sayAttrs += ` pitch="${pitch}"`;
     
@@ -85,12 +92,17 @@ class XMLBuilder {
    * @returns {string} Elemento AI Assistant en XML
    */
   static addAIAssistant(options = {}) {
+    // Importar configuración TTS
+    const config = require('../../config/texml');
+    const ttsConfig = config.tts || {};
+    
     const aiProvider = options.aiProvider || 'telnyx'; // telnyx, openai, anthropic
     const model = options.model || 'meta-llama/Meta-Llama-3-1-70B-Instruct';
     const initialPrompt = options.initialPrompt || '';
     const action = options.action || '/ai-response';
-    const language = options.language || 'es-MX';
-    const voice = options.voice || 'female';
+    const language = options.language || ttsConfig.language || 'es-MX';
+    const voice = options.voice || ttsConfig.voice || 'Mia';
+    const voiceProvider = options.provider || ttsConfig.provider || 'amazon';
     const maxTurns = options.maxTurns || '5';
     const interruptible = options.interruptible || 'true';
     const fallbackAction = options.fallbackAction || '/expediente';
@@ -100,6 +112,7 @@ class XMLBuilder {
       model="${model}" 
       language="${language}" 
       voice="${voice}"
+      voiceProvider="${voiceProvider}"
       maxTurns="${maxTurns}"
       interruptible="${interruptible}"
       action="${action}"
@@ -120,9 +133,14 @@ class XMLBuilder {
    * @returns {string} Elemento Voicebot en XML
    */
   static addVoiceBot(options = {}) {
+    // Importar configuración TTS
+    const config = require('../../config/texml');
+    const ttsConfig = config.tts || {};
+    
     const action = options.action || '/voicebot-response';
-    const language = options.language || 'es-MX';
-    const voice = options.voice || 'female';
+    const language = options.language || ttsConfig.language || 'es-MX';
+    const voice = options.voice || ttsConfig.voice || 'Mia';
+    const voiceProvider = options.provider || ttsConfig.provider || 'amazon';
     const context = options.context || '';
     const maxTurns = options.maxTurns || '5';
     const interruptible = options.interruptible || 'true';
@@ -131,6 +149,7 @@ class XMLBuilder {
       action="${action}" 
       language="${language}" 
       voice="${voice}"
+      voiceProvider="${voiceProvider}"
       maxTurns="${maxTurns}"
       interruptible="${interruptible}"`;
     
