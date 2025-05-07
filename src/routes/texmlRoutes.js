@@ -7,6 +7,7 @@ const texmlController = require('../controllers/texmlController');
 
 // Endpoint de bienvenida - Punto de entrada para llamadas
 router.post('/welcome', texmlController.handleWelcome);
+router.get('/welcome', texmlController.handleWelcome);
 
 // Endpoint para solicitar número de expediente
 router.post('/expediente', texmlController.handleExpediente);

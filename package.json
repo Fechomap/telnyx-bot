@@ -22,8 +22,10 @@
     "@aws-sdk/s3-request-presigner": "^3.741.0",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.7.9",
+    "compression": "^1.8.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "helmet": "^8.1.0",
     "openai": "^4.82.0",
     "papaparse": "^5.5.2",
     "redis": "^5.0.1"

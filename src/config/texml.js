@@ -6,7 +6,7 @@
 module.exports = {
     // Configuración del servicio
     service: {
-      baseUrl: process.env.BASE_URL || 'https://telnyx-bot-75769bef3a18.herokuapp.com',
+      baseUrl: process.env.BASE_URL || 'https://telnyx-bot-production.up.railway.app',
       callerId: process.env.TELNYX_CALLER_ID,
       connectionId: process.env.TELNYX_CONNECTION_ID
     },
