@@ -1,262 +1,68 @@
 const { 
-  handleWelcome,
-  handleExpediente,
-  handleValidarExpediente,
-  handleRespuesta,
-  handleAgent,
-  handleMetrics
-} = require('../../../src/controllers/texmlController');
-const { RESPONSE_TYPES } = require('../../../src/texml/handlers/templateHandler');
-const { ERROR_TYPES } = require('../../../src/texml/handlers/errorHandler');
-const sessionCache = require('../../../src/cache/sessionCache');
-const speechHelper = require('../../../src/texml/helpers/speechHelper');
-const monitoring = require('../../../src/utils/monitoring');
-const config = require('../../../src/config/texml');
+  RESPONSE_TYPES,
+  generateResponse,
+  sendResponse
+} = require('../../../../src/texml/handlers/templateHandler');
+const XMLBuilder = require('../../../../src/texml/helpers/xmlBuilder');
 
-describe('TexmlController', () => {
-  // Setup variables to hold our stubs
-  let resStub;
-  let sendResponseStub;
-  let respondWithErrorStub;
-  let sessionCacheStub;
-  let monitoringStub;
-  let speechHelperStub;
-  let dataServiceStub;
-  
-  beforeEach(() => {
-    // Clean all previous stubs
-    sinon.restore();
-    
-    // Create stubs for response
-    resStub = {
-      header: sinon.stub().returnsThis(),
-      send: sinon.stub(),
-      json: sinon.stub()
-    };
-    
-    // Create specific stubs for key functions
-    sendResponseStub = sinon.stub();
-    respondWithErrorStub = sinon.stub();
-    
-    // Override the imported modules with our stubs
-    sinon.stub(require('../../../src/texml/handlers/templateHandler'), 'sendResponse').callsFake(sendResponseStub);
-    sinon.stub(require('../../../src/texml/handlers/errorHandler'), 'respondWithError').callsFake(respondWithErrorStub);
-    
-    // Set up stubs for sessionCache
-    sessionCacheStub = {
-      getSession: sinon.stub(),
-      createSession: sinon.stub(),
-      getActiveSessionsCount: sinon.stub()
-    };
-    sinon.stub(sessionCache, 'getSession').callsFake(sessionCacheStub.getSession);
-    sinon.stub(sessionCache, 'createSession').callsFake(sessionCacheStub.createSession);
-    sinon.stub(sessionCache, 'getActiveSessionsCount').callsFake(sessionCacheStub.getActiveSessionsCount);
-    
-    // Set up stubs for monitoring
-    monitoringStub = {
-      trackSessionEvent: sinon.stub(),
-      startDataQuery: sinon.stub().returns(() => 100),
-      trackError: sinon.stub(),
-      trackSpeechRecognition: sinon.stub(),
-      trackExpediente: sinon.stub(),
-      getMetricsSummary: sinon.stub().returns({
-        uptime: '1h 30m',
-        requests: { total: 100, errors: { rate: '2%' } },
-        sessions: { active: 5, created: 10 }
-      })
-    };
-    sinon.stub(monitoring, 'trackSessionEvent').callsFake(monitoringStub.trackSessionEvent);
-    sinon.stub(monitoring, 'startDataQuery').callsFake(monitoringStub.startDataQuery);
-    sinon.stub(monitoring, 'trackError').callsFake(monitoringStub.trackError);
-    sinon.stub(monitoring, 'trackSpeechRecognition').callsFake(monitoringStub.trackSpeechRecognition);
-    sinon.stub(monitoring, 'trackExpediente').callsFake(monitoringStub.trackExpediente);
-    sinon.stub(monitoring, 'getMetricsSummary').callsFake(monitoringStub.getMetricsSummary);
-    
-    // Set up stubs for speechHelper
-    speechHelperStub = {
-      interpretSpeechInput: sinon.stub(),
-      generateUnrecognizedInputXML: sinon.stub().returns('<unrecognized-xml>')
-    };
-    sinon.stub(speechHelper, 'interpretSpeechInput').callsFake(speechHelperStub.interpretSpeechInput);
-    sinon.stub(speechHelper, 'generateUnrecognizedInputXML').callsFake(speechHelperStub.generateUnrecognizedInputXML);
-    
-    // Set up stubs for optimizedDataService
-    dataServiceStub = {
-      consultaUnificada: sinon.stub(),
-      formatearDatosParaIVR: sinon.stub()
-    };
-    sinon.stub(require('../../../src/services/optimizedDataService'), 'consultaUnificada')
-      .callsFake(dataServiceStub.consultaUnificada);
-    sinon.stub(require('../../../src/services/optimizedDataService'), 'formatearDatosParaIVR')
-      .callsFake(dataServiceStub.formatearDatosParaIVR);
-    
-    // Mock the config object
-    sinon.stub(config, 'transfer').value({ 
-      enabled: true,
-      agentNumber: '+15551234567' 
-    });
-    
-    // Add adminToken property to mocked config
-    if (!config.adminToken) {
-      config.adminToken = 'valid-token';
-    }
-  });
-  
-  afterEach(() => {
-    sinon.restore();
-  });
-  
-  describe('handleWelcome', () => {
-    it('should send welcome response and track session event', async () => {
-      const req = {}; // No data needed for welcome
-      
-      await handleWelcome(req, resStub);
-      
-      // Verify function was called (don't check exact arguments)
-      expect(monitoringStub.trackSessionEvent.called).to.be.true;
-      expect(sendResponseStub.called).to.be.true;
-      
-      // If you need to check arguments, use sinon's calledWith directly
-      sinon.assert.calledWith(sendResponseStub, resStub, RESPONSE_TYPES.WELCOME);
+describe('TemplateHandler', () => {
+  describe('RESPONSE_TYPES', () => {
+    it('should have all expected response types defined', () => {
+      expect(RESPONSE_TYPES).to.have.property('WELCOME');
+      expect(RESPONSE_TYPES).to.have.property('REQUEST_EXPEDIENTE');
+      expect(RESPONSE_TYPES).to.have.property('MAIN_MENU');
+      expect(RESPONSE_TYPES).to.have.property('RESPONSE_MENU');
+      expect(RESPONSE_TYPES).to.have.property('AGENT_TRANSFER');
+      // Añadir otros tipos de respuesta esperados
     });
   });
-  
-  describe('handleExpediente', () => {
-    it('should process regular DTMF request', async () => {
-      const req = {
-        body: { Digits: '1' },
-        query: {}
-      };
-      
-      await handleExpediente(req, resStub);
-      
-      // Verify functions were called
-      expect(sendResponseStub.called).to.be.true;
-      sinon.assert.calledWith(sendResponseStub, resStub, RESPONSE_TYPES.REQUEST_EXPEDIENTE);
+
+  describe('generateResponse', () => {
+    beforeEach(() => {
+      sinon.stub(XMLBuilder, 'buildResponse').returns('<respuesta-mock>');
     });
-    
-    it('should process speech input for expediente option', async () => {
-      const req = {
-        body: { SpeechResult: 'quiero consultar un expediente' },
-        query: {}
-      };
-      
-      await handleExpediente(req, resStub);
-      
-      // Verify speech recognition was tracked
-      expect(monitoringStub.trackSpeechRecognition.called).to.be.true;
-      
-      // Verify response was sent
-      expect(sendResponseStub.called).to.be.true;
-      sinon.assert.calledWith(sendResponseStub, resStub, RESPONSE_TYPES.REQUEST_EXPEDIENTE);
+
+    afterEach(() => {
+      sinon.restore();
     });
-    
-    it('should handle speech input for service option', async () => {
-      const req = {
-        body: { SpeechResult: 'quiero cotizar un servicio' },
-        query: {}
-      };
-      
-      await handleExpediente(req, resStub);
-      
-      // Verify speech recognition was tracked
-      expect(monitoringStub.trackSpeechRecognition.called).to.be.true;
-      
-      // In this case, we just check that some response was sent
-      expect(resStub.header.called).to.be.true;
-      expect(resStub.send.called).to.be.true;
+
+    it('should generate welcome response', () => {
+      const result = generateResponse(RESPONSE_TYPES.WELCOME);
+      expect(XMLBuilder.buildResponse).to.have.been.called;
+      expect(result).to.equal('<respuesta-mock>');
     });
-    
-    it('should handle errors gracefully', async () => {
-      const req = { body: {} };
-      
-      // Force an error
-      sendResponseStub.throws(new Error('Test error'));
-      
-      await handleExpediente(req, resStub);
-      
-      // Verify error was tracked
-      expect(monitoringStub.trackError.called).to.be.true;
-      
-      // Verify error response was sent
-      expect(respondWithErrorStub.called).to.be.true;
+
+    it('should generate expediente request response', () => {
+      const result = generateResponse(RESPONSE_TYPES.REQUEST_EXPEDIENTE);
+      expect(XMLBuilder.buildResponse).to.have.been.called;
+      expect(result).to.equal('<respuesta-mock>');
     });
+
+    // Añadir pruebas para otros tipos de respuesta
   });
-  
-  describe('handleValidarExpediente', () => {
-    it('should process valid expediente and create session', async () => {
-      // Setup test data
-      const mockExpediente = {
-        nombre: 'Juan Pérez',
-        vehiculo: 'Honda Civic 2020',
-        estatus: 'En proceso'
-      };
-      
-      const mockFormateado = {
-        mensajeGeneral: 'Expediente encontrado. Juan Pérez.',
-        estatus: 'En proceso'
-      };
-      
-      // Configure stubs
-      dataServiceStub.consultaUnificada.resolves(mockExpediente);
-      dataServiceStub.formatearDatosParaIVR.returns(mockFormateado);
-      sessionCacheStub.createSession.returns('test-session-id');
-      
-      const req = {
-        body: { Digits: '54321' },
-        query: {}
-      };
-      
-      await handleValidarExpediente(req, resStub);
-      
-      // Verify data service was called
-      expect(dataServiceStub.consultaUnificada.called).to.be.true;
-      
-      // Verify session was created
-      expect(sessionCacheStub.createSession.called).to.be.true;
-      
-      // Verify response was sent (check that the function was called, not specific args)
-      expect(sendResponseStub.called).to.be.true;
-    });
+
+  describe('sendResponse', () => {
+    let resStub;
     
-    // Add remaining tests for handleValidarExpediente
-    // ...
-  });
-  
-  // Add tests for the remaining handler methods similarly
-  // ...
-  
-  describe('handleMetrics', () => {
-    it('should return metrics when authorized', async () => {
-      // Setup request with valid token
-      const req = {
-        query: { token: 'valid-token' }
+    beforeEach(() => {
+      resStub = {
+        header: sinon.stub().returnsThis(),
+        send: sinon.stub()
       };
-      
-      await handleMetrics(req, resStub);
-      
-      // Verify response contains metrics
-      expect(resStub.json.called).to.be.true;
+      sinon.stub(XMLBuilder, 'buildResponse').returns('<respuesta-mock>');
     });
-    
-    it('should reject unauthorized requests', async () => {
-      // Setup request with invalid token
-      const req = {
-        query: { token: 'invalid-token' }
-      };
+
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    it('should set XML content type and send response', () => {
+      const responseType = RESPONSE_TYPES.WELCOME;
       
-      // Create status stub for this test
-      const resWithStatus = {
-        ...resStub,
-        status: sinon.stub().returnsThis()
-      };
+      sendResponse(resStub, responseType);
       
-      await handleMetrics(req, resWithStatus);
-      
-      // Verify unauthorized response
-      expect(resWithStatus.status.called).to.be.true;
-      sinon.assert.calledWith(resWithStatus.status, 401);
-      expect(resWithStatus.json.called).to.be.true;
+      expect(resStub.header).to.have.been.calledWith('Content-Type', 'application/xml');
+      expect(resStub.send).to.have.been.called;
     });
   });
 });
