@@ -395,6 +395,69 @@ async function handleMenu(req, res) {
   }
 }
 
+/**
+ * Controlador para manejar respuestas del AI Assistant
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} res - Objeto de respuesta Express
+ */
+async function handleAIResponse(req, res) {
+  try {
+    const sessionId = req.query.sessionId || '';
+    
+    // Obtener texto de la respuesta del usuario
+    const userInput = req.body.SpeechResult || req.body.input || '';
+    
+    // Recuperar datos de la sesión
+    const expedienteData = sessionCache.getSession(sessionId);
+    
+    if (!expedienteData && userInput.toLowerCase().includes('expediente')) {
+      // Si menciona expediente pero no hay sesión, redirigir a captura de expediente
+      return sendResponse(res, RESPONSE_TYPES.REQUEST_EXPEDIENTE);
+    }
+    
+    // Formatear contexto para AI
+    const context = aiService.formatContextForAI(expedienteData);
+    
+    // Procesar con AI
+    const aiResponse = await aiService.processQuery(userInput, context);
+    
+    // Generar respuesta XML con la respuesta del AI
+    const sayElement = XMLBuilder.addSay(aiResponse, {
+      voice: 'female',
+      language: 'es-MX',
+      engine: 'neural'
+    });
+    
+    // Configurar opciones para continuar conversación
+    const aiOptions = {
+      aiProvider: 'telnyx',
+      model: 'meta-llama/Meta-Llama-3-1-70B-Instruct',
+      action: `/ai-response?sessionId=${sessionId}`,
+      fallbackAction: `/menu?sessionId=${sessionId}`,
+      language: 'es-MX',
+      voice: 'female',
+      maxTurns: '5',
+      interruptible: 'true'
+    };
+    
+    // Crear elemento AI para continuar conversación
+    const aiElement = XMLBuilder.addAIAssistant(aiOptions);
+    
+    // Enviar respuesta completa
+    const responseXML = XMLBuilder.buildResponse([sayElement, aiElement]);
+    res.header('Content-Type', 'application/xml');
+    res.send(responseXML);
+    
+  } catch (error) {
+    console.error('❌ Error al procesar respuesta AI:', error);
+    
+    // En caso de error, redirigir al menú principal
+    respondWithError(res, ERROR_TYPES.SYSTEM_ERROR, {
+      sessionId: req.query.sessionId
+    });
+  }
+}
+
 module.exports = {
   handleWelcome,
   handleExpediente,
@@ -402,5 +465,6 @@ module.exports = {
   handleRespuesta,
   handleAgent,
   handleMetrics,
-  handleMenu
+  handleMenu,
+  handleAIResponse
 };
