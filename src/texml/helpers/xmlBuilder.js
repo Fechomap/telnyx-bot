@@ -26,22 +26,41 @@ class XMLBuilder {
    * @returns {string} Elemento Say en XML
    */
   static addSay(text, options = {}) {
-    // Importar configuración TTS
-    const config = require('../../config/texml');
-    const ttsConfig = config.tts || {};
-    
+    // REEMPLAZAR ESTE CÓDIGO:
+    /*
     // Usar opciones proporcionadas o valores de configuración
-    const provider = 'amazon';             // Forzar uso exclusivo de Amazon Polly
-    const voice = 'Mia';                   // Voz predeterminada (puedes cambiarla si prefieres otra)
-    const language = 'es-MX';              // Español mexicano
-    const engine = 'neural';              // Motor de síntesis avanzado de Polly
-    const rate = '1.0';                    // Velocidad normal
-    const pitch = '1.0';                   // Tono neutral
+    const provider = 'amazon';             
+    const voice = 'Mia';                   
+    const language = 'es-MX';              
+    const engine = 'neural';              
+    const rate = '1.0';                    
+    const pitch = '1.0';                   
     
     // Construir atributos para el elemento Say
     let sayAttrs = `provider="${provider}" voice="${voice}" language="${language}" engine="${engine}"`;
     if (rate !== '1.0') sayAttrs += ` rate="${rate}"`;
     if (pitch !== '1.0') sayAttrs += ` pitch="${pitch}"`;
+    */
+    
+    // NUEVO CÓDIGO:
+    // Usar el formato específico requerido por Telnyx (prefijo "Polly." y sufijo "-Neural")
+    const voiceFormat = "Polly.Mia-Neural"; // Voz femenina Mia de Amazon Polly
+    
+    // Construir atributos usando la sintaxis correcta de Telnyx TeXML
+    let sayAttrs = `voice="${voiceFormat}"`;
+    
+    // Puedes añadir soporte para otras voces si es necesario
+    if (options && options.voice) {
+      if (options.voice === "Lupe") {
+        sayAttrs = `voice="Polly.Lupe-Neural"`;
+      } else if (options.voice === "Pedro") {
+        sayAttrs = `voice="Polly.Pedro-Neural"`;
+      } else if (options.voice === "Joanna") {
+        sayAttrs = `voice="Polly.Joanna-Neural"`;
+      } else if (options.voice === "Matthew") {
+        sayAttrs = `voice="Polly.Matthew-Neural"`;
+      }
+    }
     
     return `  <Say ${sayAttrs}>\n    ${this.escapeXML(text)}\n  </Say>\n`;
   }

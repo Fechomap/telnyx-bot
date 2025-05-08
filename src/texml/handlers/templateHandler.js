@@ -82,10 +82,10 @@ function generateResponse(type, params = {}) {
 function sendResponse(res, type, params = {}) {
   const responseXML = generateResponse(type, params);
   
+  console.log(`📝 ENVIANDO XML:\n${responseXML}`);
+  
   res.header('Content-Type', 'application/xml');
   res.send(responseXML);
-  
-  console.log(`✅ Respuesta TeXML enviada: ${type}`);
 }
 
 module.exports = {

@@ -15,22 +15,18 @@ function generateWelcomeXML() {
     "Para seguimiento de expediente, presione 1 o diga 'expediente'. " +
     "Para solicitar o cotizar un servicio, presione 2 o diga 'servicio'.";
   
-  // Configurar opciones avanzadas para voz más natural
-  // Forzar configuración de Amazon Polly con voz Mia
+  // Configurar opciones para voz
   const sayOptions = {
     provider: 'amazon',
     voice: 'Mia',
     language: 'es-MX',
-    engine: 'neural', // Voz más natural
-    rate: '0.95'      // Ligeramente más lento para mejor comprensión
+    engine: 'neural'
   };
   
-  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de bienvenida');
-  
-  // Crear elemento Say con las opciones mejoradas
+  // Crear elemento Say independiente
   const sayElement = XMLBuilder.addSay(welcomeMessage, sayOptions);
   
-  // Configurar Gather con opciones avanzadas y soporte completo para voz
+  // Configurar Gather separado
   const gatherOptions = {
     action: '/expediente',
     method: 'POST',
@@ -38,20 +34,19 @@ function generateWelcomeXML() {
     validDigits: '12',
     timeout: '5',
     input: 'dtmf speech',
-    interruptible: 'true',   // CRUCIAL: permite interrumpir con DTMF
+    interruptible: 'true',
     speechTimeout: 'auto',
     speechModel: 'phone_call',
     language: 'es-MX',
-    hints: 'expediente,consulta,servicio,cotizar,uno,dos',
-    // Anidamos el Say dentro del Gather para permitir interrupción
-    nested: sayElement
+    hints: 'expediente,consulta,servicio,cotizar,uno,dos'
+    // Ya no anidamos el Say dentro del Gather
   };
   
-  // Crear elemento Gather (con Say anidado para interrupción)
+  // Crear elemento Gather
   const gatherElement = XMLBuilder.addGather(gatherOptions);
   
-  // Construir respuesta XML
-  return XMLBuilder.buildResponse([gatherElement]);
+  // Construir respuesta XML con Say ANTES de Gather
+  return XMLBuilder.buildResponse([sayElement, gatherElement]);
 }
 
 /**
