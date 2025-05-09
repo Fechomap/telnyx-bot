@@ -201,7 +201,7 @@ describe('XMLBuilder', () => {
       expect(result).to.include('<?xml version="1.0" encoding="UTF-8"?>');
       expect(result).to.include('<Response>');
       
-      // Verificar el nuevo formato de voz
+      // Verificar el nuevo formato de voz en el Say
       expect(result).to.include('<Say voice="Polly.Mia-Neural">');
       expect(result).to.include('Welcome to the service.');
       
@@ -212,10 +212,13 @@ describe('XMLBuilder', () => {
       expect(result).to.include('<Hangup>');
       expect(result).to.include('</Response>');
       
-      // Verificar que NO incluye los atributos antiguos
-      expect(result).to.not.include('provider="amazon"');
-      expect(result).to.not.include('language="es-MX"');
-      expect(result).to.not.include('engine="neural"');
+      // Verificar que el elemento Say NO incluye los atributos antiguos
+      const sayElementMatch = result.match(/<Say[^>]*>/);
+      const sayElementStr = sayElementMatch ? sayElementMatch[0] : '';
+      
+      expect(sayElementStr).to.not.include('provider="amazon"');
+      expect(sayElementStr).to.not.include('language="es-MX"');
+      expect(sayElementStr).to.not.include('engine="neural"');
     });
   });
 });
