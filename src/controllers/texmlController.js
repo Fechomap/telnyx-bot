@@ -6,7 +6,7 @@ const { RESPONSE_TYPES, sendResponse } = require('../texml/handlers/templateHand
 const { ERROR_TYPES, respondWithError } = require('../texml/handlers/errorHandler');
 const sessionCache = require('../cache/sessionCache');
 const speechUtils = require('../utils/speechUtils');
-const { consultaUnificada, formatearDatosParaIVR } = require('../services/optimizedDataService');
+const { consultaUnificada, formatearDatosParaIVR } = require('../services/dataService');
 const config = require('../config/texml');
 const monitoring = require('../utils/monitoring');
 

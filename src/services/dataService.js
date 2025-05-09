@@ -161,6 +161,28 @@ function getCacheStats() {
   };
 }
 
+function formatearDatosParaIVR(datosUnificados) {
+  if (!datosUnificados) return null;
+  
+  const { datosGenerales, costos, unidad, ubicacion, tiempos } = datosUnificados;
+  
+  return {
+    mensajeGeneral: `Expediente encontrado. Cliente: ${datosGenerales?.nombre || 'No disponible'}`,
+    mensajeCostos: costos?.costo ? `El costo total es ${costos.costo}` : "Información de costos no disponible",
+    mensajeUnidad: unidad?.operador ? `Operador: ${unidad.operador}` : "Información de unidad no disponible",
+    mensajeUbicacion: ubicacion?.tiempoRestante ? `Tiempo estimado: ${ubicacion.tiempoRestante}` : "Información de ubicación no disponible",
+    mensajeTiempos: tiempos?.tc ? `Tiempo de contacto: ${tiempos.tc}` : "Información de tiempos no disponible",
+    estatus: datosGenerales?.estatus || 'En proceso'
+  };
+}
+
+module.exports = {
+  consultaUnificada,
+  formatearDatosParaIVR,
+  clearCache,
+  getCacheStats
+};
+
 module.exports = {
   consultaUnificada,
   clearCache,
