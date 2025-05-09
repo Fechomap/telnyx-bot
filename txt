@@ -1,4 +1,0 @@
-https://telnyx-bot-75769bef3a18.herokuapp.com/webhook
-
-https://a6e8-2806-2f0-91a0-df27-e08e-63bb-a2d7-1a9b.ngrok-free.app
-
