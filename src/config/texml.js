@@ -41,7 +41,7 @@ module.exports = {
   // Configuración de transferencia a agentes
   transfer: {
     enabled: true,
-    agentNumber: process.env.AGENT_NUMBER || '',
+    agentNumber: process.env.AGENT_NUMBER || '+525588974509', // ASEGÚRATE DE TENER UN NÚMERO
     transferMessage: "Transfiriendo a un agente. Por favor espere un momento..."
   },
   

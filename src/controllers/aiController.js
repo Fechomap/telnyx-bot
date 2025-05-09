@@ -45,6 +45,9 @@ async function handleWelcome(req, res) {
     
     // Construir y enviar respuesta
     const responseXML = XMLBuilder.buildResponse([aiElement]);
+    
+    console.log('📝 XML de respuesta AI:\n', responseXML);
+    
     res.header('Content-Type', 'application/xml');
     res.send(responseXML);
     

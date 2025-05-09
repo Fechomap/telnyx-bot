@@ -1,6 +1,7 @@
 /**
  * Controlador principal mejorado para endpoints TeXML
  * Versión optimizada con soporte para reconocimiento de voz y manejo avanzado de errores
+ * NOTA: Este controlador está siendo reemplazado por aiController para el flujo conversacional
  */
 const { RESPONSE_TYPES, sendResponse } = require('../texml/handlers/templateHandler');
 const { ERROR_TYPES, respondWithError } = require('../texml/handlers/errorHandler');
@@ -9,72 +10,28 @@ const speechUtils = require('../utils/speechUtils');
 const { consultaUnificada, formatearDatosParaIVR } = require('../services/dataService');
 const config = require('../config/texml');
 const monitoring = require('../utils/monitoring');
+const XMLBuilder = require('../texml/helpers/xmlBuilder');
 
 /**
  * Controlador para endpoint /welcome
- * Muestra mensaje de bienvenida y opciones iniciales
+ * NOTA: Este endpoint ahora redirige al flujo AI
  */
 async function handleWelcome(req, res) {
-  console.log('📞 Nueva llamada recibida, enviando bienvenida');
-  
-  // Registrar inicio de llamada en métricas
-  monitoring.trackSessionEvent('created', 'new_call');
-  
-  // Enviar respuesta de bienvenida
-  sendResponse(res, RESPONSE_TYPES.WELCOME);
+  // Redirigir al controlador AI
+  const aiController = require('./aiController');
+  return aiController.handleWelcome(req, res);
 }
 
 /**
  * Controlador para endpoint /expediente
  * Solicita número de expediente al usuario
+ * NOTA: Mantenido para compatibilidad pero no usado en el flujo AI
  */
 async function handleExpediente(req, res) {
   try {
-    console.log('🔢 Usuario seleccionó opción para consultar expediente');
+    console.log('🔢 Usuario seleccionó opción para consultar expediente (flujo legacy)');
     
-    // Verificar entrada de voz y procesarla si existe
-    const speechResult = req.body.SpeechResult || '';
-    if (speechResult) {
-      console.log(`🗣️ Entrada de voz recibida: "${speechResult}"`);
-      monitoring.trackSpeechRecognition('attempt', speechResult, 'expediente');
-      
-      // Si la entrada incluye "servicio" o "cotizar", redirigir a ese flujo
-      const normalizedInput = speechResult.toLowerCase();
-      if (normalizedInput.includes('servicio') || 
-          normalizedInput.includes('cotizar') || 
-          normalizedInput.includes('cotizacion') ||
-          normalizedInput.includes('cotización')) {
-        
-        monitoring.trackSpeechRecognition('success', speechResult, 'servicio');
-        // Aquí se implementaría la redirección al flujo de cotización
-        // Por ahora, informamos que no está disponible
-        const notAvailableMessage = "Lo sentimos, la cotización de servicios no está disponible actualmente por este medio. Por favor, intente de nuevo seleccionando consulta de expediente.";
-        
-        // Usar Amazon Polly con voz Mia
-        const sayOptions = {
-          provider: 'amazon',
-          voice: 'Mia',
-          language: 'es-MX',
-          engine: 'neural'
-        };
-        
-        console.log('🔊 Usando voz Amazon Polly Mia para mensaje de servicio no disponible');
-        
-        const sayElement = XMLBuilder.addSay(notAvailableMessage, sayOptions);
-        const redirectElement = XMLBuilder.addRedirect("/welcome");
-        const responseXML = XMLBuilder.buildResponse([sayElement, redirectElement]);
-        
-        res.header('Content-Type', 'application/xml');
-        return res.send(responseXML);
-      }
-      
-      monitoring.trackSpeechRecognition('success', speechResult, 'expediente');
-    }
-    
-    // Obtener contador de intentos para manejo de errores
-    const attempt = parseInt(req.query.attempt) || 1;
-    
-    // Enviar respuesta solicitando número de expediente
+    // Para flujo legacy, enviar respuesta solicitando número de expediente
     sendResponse(res, RESPONSE_TYPES.REQUEST_EXPEDIENTE);
   } catch (error) {
     console.error('❌ Error al procesar solicitud de expediente:', error);
@@ -86,6 +43,7 @@ async function handleExpediente(req, res) {
 /**
  * Controlador para endpoint /validar-expediente
  * Valida el expediente y carga todos los datos necesarios
+ * NOTA: Mantenido para compatibilidad pero no usado en el flujo AI
  */
 async function handleValidarExpediente(req, res) {
   // Iniciar medición de tiempo para consulta de datos
@@ -103,8 +61,8 @@ async function handleValidarExpediente(req, res) {
       console.log(`🗣️ Expediente recibido por voz: "${speechResult}"`);
       monitoring.trackSpeechRecognition('attempt', speechResult, 'validación');
       
-      // Limpiar y normalizar la entrada
-      expediente = speechResult.replace(/[^0-9]/g, '');
+      // Usar utilidad para extraer expediente del texto
+      expediente = speechUtils.extractExpedienteFromText(speechResult);
       
       if (expediente) {
         monitoring.trackSpeechRecognition('success', speechResult, expediente);
@@ -183,6 +141,7 @@ async function handleValidarExpediente(req, res) {
 /**
  * Controlador para endpoint /respuesta
  * Proporciona la información específica según la opción seleccionada
+ * NOTA: Mantenido para compatibilidad pero no usado en el flujo AI
  */
 async function handleRespuesta(req, res) {
   try {
@@ -210,29 +169,8 @@ async function handleRespuesta(req, res) {
     const digits = req.body.Digits || '';
     const speechResult = req.body.SpeechResult || '';
     
-    if (speechResult) {
-      console.log(`🗣️ Comando de voz recibido: "${speechResult}"`);
-      monitoring.trackSpeechRecognition('attempt', speechResult, 'menu');
-      
-      // Interpretar entrada de voz utilizando el helper
-      opcion = speechHelper.interpretSpeechInput(speechResult);
-      
-      if (opcion) {
-        monitoring.trackSpeechRecognition('success', speechResult, opcion);
-      } else {
-        monitoring.trackSpeechRecognition('failure', speechResult, 'No reconocido');
-        
-        // Generar respuesta para entrada no reconocida
-        return res.header('Content-Type', 'application/xml')
-          .send(speechHelper.generateUnrecognizedInputXML(sessionId, datosExpediente.estatus));
-      }
-    } else if (digits) {
-      opcion = digits;
-    } else {
-      console.log('❌ No se recibió ninguna entrada');
-      monitoring.trackError('input_missing', req.originalUrl, { sessionId });
-      return respondWithError(res, ERROR_TYPES.INPUT_INVALID, { sessionId });
-    }
+    // Obtener opción (por ahora solo manejar dígitos en legacy)
+    opcion = digits;
     
     console.log(`🔢 Usuario seleccionó opción ${opcion} para sesión ${sessionId}`);
     
@@ -408,72 +346,17 @@ async function handleMenu(req, res) {
 
 /**
  * Controlador para manejar respuestas del AI Assistant
- * @param {Object} req - Objeto de solicitud Express
- * @param {Object} res - Objeto de respuesta Express
+ * NOTA: Este se mantiene por compatibilidad pero redirige al controlador AI
  */
 async function handleAIResponse(req, res) {
-  try {
-    // Forzar deshabilitación del AI Assistant independientemente de la configuración
-    console.log('⚠️ AI Assistant está deshabilitado');
-    // Redirigir al menú principal o a la bienvenida
-    return sendResponse(res, RESPONSE_TYPES.WELCOME);
-    
-    const sessionId = req.query.sessionId || '';
-    
-    // Obtener texto de la respuesta del usuario
-    const userInput = req.body.SpeechResult || req.body.input || '';
-    
-    // Recuperar datos de la sesión
-    const expedienteData = sessionCache.getSession(sessionId);
-    
-    if (!expedienteData && userInput.toLowerCase().includes('expediente')) {
-      // Si menciona expediente pero no hay sesión, redirigir a captura de expediente
-      return sendResponse(res, RESPONSE_TYPES.REQUEST_EXPEDIENTE);
-    }
-    
-    // Formatear contexto para AI
-    const context = aiService.formatContextForAI(expedienteData);
-    
-    // Procesar con AI
-    const aiResponse = await aiService.processQuery(userInput, context);
-    
-    // Generar respuesta XML con la respuesta del AI
-    const sayElement = XMLBuilder.addSay(aiResponse, {
-      provider: config.tts.provider,
-      voice: config.tts.voice,
-      language: config.tts.language,
-      engine: config.tts.engine
-    });
-    
-    // Configurar opciones para continuar conversación
-    const aiOptions = {
-      aiProvider: 'telnyx',
-      model: config.ai.model || 'meta-llama/Meta-Llama-3-1-70B-Instruct',
-      action: `/ai-response?sessionId=${sessionId}`,
-      fallbackAction: `/menu?sessionId=${sessionId}`,
-      language: config.tts.language,
-      voice: config.tts.voice,
-      provider: config.tts.provider,
-      maxTurns: config.ai.maxTurns || '5',
-      interruptible: 'true'
-    };
-    
-    // Crear elemento AI para continuar conversación
-    const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-    
-    // Enviar respuesta completa
-    const responseXML = XMLBuilder.buildResponse([sayElement, aiElement]);
-    res.header('Content-Type', 'application/xml');
-    res.send(responseXML);
-    
-  } catch (error) {
-    console.error('❌ Error al procesar respuesta AI:', error);
-    
-    // En caso de error, redirigir al menú principal
-    respondWithError(res, ERROR_TYPES.SYSTEM_ERROR, {
-      sessionId: req.query.sessionId
-    });
+  // Redirigir al controlador AI si existe
+  const aiController = require('./aiController');
+  if (aiController.handleInteraction) {
+    return aiController.handleInteraction(req, res);
   }
+  
+  // Fallback: redirigir a welcome
+  return sendResponse(res, RESPONSE_TYPES.WELCOME);
 }
 
 module.exports = {

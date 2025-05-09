@@ -8,7 +8,7 @@ const express = require('express');
 const helmet = require('helmet');
 const compression = require('compression');
 const aiRoutes = require('./src/routes/aiRoutes');
-const texmlRoutes = require('./src/routes/texmlRoutes'); // Mantener para compatibilidad
+// const texmlRoutes = require('./src/routes/texmlRoutes'); // COMENTADO: Usando flujo AI
 const sessionCache = require('./src/cache/sessionCache');
 const config = require('./src/config/texml');
 const monitoring = require('./src/utils/monitoring');
@@ -88,8 +88,8 @@ app.post('/admin/clear-cache', (req, res) => {
 // Montar rutas AI (principales)
 app.use('/', aiRoutes);
 
-// Montar rutas TeXML antiguas (compatibilidad)
-app.use('/', texmlRoutes);
+// Montar rutas TeXML antiguas (compatibilidad) - COMENTADO PARA EVITAR CONFLICTOS
+// app.use('/', texmlRoutes);
 
 // Ruta de fallback para URLs desconocidas
 app.use((req, res, next) => {

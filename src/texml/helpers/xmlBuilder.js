@@ -125,17 +125,17 @@ class XMLBuilder {
     // Usar el formato correcto para la voz
     let voiceFormat = `Polly.${voiceName}-Neural`;
     
-    // Construir atributos del elemento
-    let aiAssistantAttrs = `
-      provider="${aiProvider}" 
-      model="${model}" 
-      language="${language}" 
-      voice="${voiceFormat}"
-      maxTurns="${maxTurns}"
-      interruptible="${interruptible}"
-      action="${action}"
-      fallbackAction="${fallbackAction}"
-      enhanced="${enhanced}"`;
+    // Construir atributos del elemento - VERIFICAR QUE ESTE FORMATO SEA CORRECTO
+    let aiAssistantAttrs = '';
+    aiAssistantAttrs += ` provider="${aiProvider}"`;
+    aiAssistantAttrs += ` model="${model}"`;
+    aiAssistantAttrs += ` language="${language}"`;
+    aiAssistantAttrs += ` voice="${voiceFormat}"`;
+    aiAssistantAttrs += ` maxTurns="${maxTurns}"`;
+    aiAssistantAttrs += ` interruptible="${interruptible}"`;
+    aiAssistantAttrs += ` action="${action}"`;
+    aiAssistantAttrs += ` fallbackAction="${fallbackAction}"`;
+    aiAssistantAttrs += ` enhanced="${enhanced}"`;
     
     // Si hay contexto de variables, construir elementos Variable
     let contextElements = '';
