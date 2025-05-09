@@ -3,21 +3,19 @@
  * Proporciona una interfaz unificada para todas las plantillas XML
  */
 const welcomeTemplates = require('../templates/welcome');
-const menuTemplates = require('../templates/menu');
-const agentTemplates = require('../templates/agent');
+// Eliminar o actualizar estas líneas que causan el error:
+// const menuTemplates = require('../templates/menu');  // ELIMINAR
+// const agentTemplates = require('../templates/agent'); // ELIMINAR
+
+const XMLBuilder = require('../helpers/xmlBuilder');
+const config = require('../../config/texml');
 
 /**
  * Constantes para tipos de respuesta
  */
 const RESPONSE_TYPES = {
   WELCOME: 'welcome',
-  REQUEST_EXPEDIENTE: 'requestExpediente',
-  MAIN_MENU: 'mainMenu',
-  RESPONSE_MENU: 'responseMenu',
-  AGENT_TRANSFER: 'agentTransfer',
-  CALLBACK: 'callback',
-  EXPEDIENTE_NOT_FOUND: 'expedienteNotFound',
-  SESSION_EXPIRED: 'sessionExpired',
+  AI_ASSISTANT: 'aiAssistant',
   ERROR: 'error'
 };
 
@@ -32,44 +30,23 @@ function generateResponse(type, params = {}) {
   
   switch (type) {
     case RESPONSE_TYPES.WELCOME:
-      // Siempre usar la versión estándar, nunca la versión con AI
       return welcomeTemplates.generateWelcomeXML();
       
-    case RESPONSE_TYPES.REQUEST_EXPEDIENTE:
-      return welcomeTemplates.generateRequestExpedienteXML();
-      
-    case RESPONSE_TYPES.MAIN_MENU:
-      return menuTemplates.generateMainMenuXML(
-        params.datosFormateados,
-        params.sessionId,
-        params.estatus
-      );
-      
-    case RESPONSE_TYPES.RESPONSE_MENU:
-      return menuTemplates.generateResponseMenuXML(
-        params.mensajeRespuesta,
-        params.sessionId,
-        params.estatus
-      );
-      
-    case RESPONSE_TYPES.AGENT_TRANSFER:
-      return agentTemplates.generateAgentTransferXML(params.sessionId);
-      
-    case RESPONSE_TYPES.CALLBACK:
-      return agentTemplates.generateCallbackXML(params.sessionId);
-      
-    case RESPONSE_TYPES.EXPEDIENTE_NOT_FOUND:
-      return menuTemplates.generateExpedienteNotFoundXML();
-      
-    case RESPONSE_TYPES.SESSION_EXPIRED:
-      return menuTemplates.generateSessionExpiredXML();
+    case RESPONSE_TYPES.AI_ASSISTANT:
+      // Usar XMLBuilder directamente para AI Assistant
+      const aiElement = XMLBuilder.addAIAssistant(params);
+      return XMLBuilder.buildResponse([aiElement]);
       
     case RESPONSE_TYPES.ERROR:
-      return menuTemplates.generateErrorXML();
+      // Generar mensaje de error simple
+      const errorMessage = params.message || "Ha ocurrido un error. Por favor intente nuevamente.";
+      const sayElement = XMLBuilder.addSay(errorMessage, { voice: config.tts.voice });
+      const redirectElement = XMLBuilder.addRedirect('/welcome');
+      return XMLBuilder.buildResponse([sayElement, redirectElement]);
       
     default:
       console.error(`Tipo de respuesta TeXML desconocido: ${type}`);
-      return menuTemplates.generateErrorXML();
+      return generateResponse(RESPONSE_TYPES.ERROR, { message: 'Error del sistema' });
   }
 }
 
