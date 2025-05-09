@@ -1,21 +1,70 @@
 /**
- * Servicio de datos unificado
- * Realiza consultas paralelas a todos los endpoints necesarios
- * y unifica los resultados en un solo objeto
+ * Servicio unificado de datos
+ * Combina las mejores partes de optimizedDataService con mejoras
  */
-
-// Importar el servicio Telnyx existente
 const TelnyxService = require('./telnyxService');
 const telnyxService = new TelnyxService();
+const monitoring = require('../utils/monitoring');
+
+// Caché en memoria para expedientes
+const expedienteCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
+
+/**
+ * Verifica si el dato está en caché y es válido
+ * @param {string} expediente - Número de expediente
+ * @returns {Object|null} Datos en caché o null
+ */
+function checkCache(expediente) {
+  const cached = expedienteCache.get(expediente);
+  
+  if (!cached) return null;
+  
+  // Verificar expiración
+  const now = Date.now();
+  if (now > cached.expires) {
+    expedienteCache.delete(expediente);
+    return null;
+  }
+  
+  console.log(`✅ Datos obtenidos de caché para expediente: ${expediente}`);
+  monitoring.trackExpediente('cached', expediente);
+  return cached.data;
+}
+
+/**
+ * Almacena datos en caché
+ * @param {string} expediente - Número de expediente
+ * @param {Object} data - Datos a almacenar
+ */
+function storeInCache(expediente, data) {
+  expedienteCache.set(expediente, {
+    data,
+    created: Date.now(),
+    expires: Date.now() + CACHE_TTL
+  });
+  
+  console.log(`✅ Datos almacenados en caché para expediente: ${expediente}`);
+  
+  // Programar limpieza automática
+  setTimeout(() => {
+    expedienteCache.delete(expediente);
+    console.log(`🧹 Caché limpiado para expediente: ${expediente}`);
+  }, CACHE_TTL);
+}
 
 /**
  * Realiza todas las consultas necesarias para un expediente en paralelo
  * @param {string} expediente - Número de expediente
- * @returns {Promise<Object>} Objeto con todos los datos unificados
+ * @returns {Promise<Object|null>} Datos unificados o null
  */
 async function consultaUnificada(expediente) {
   try {
     console.log(`🔄 Iniciando consulta unificada para expediente: ${expediente}`);
+    
+    // Verificar caché primero
+    const cachedData = checkCache(expediente);
+    if (cachedData) return cachedData;
     
     // Obtener datos generales primero
     const datosGenerales = await telnyxService.obtenerExpediente(expediente);
@@ -26,128 +75,94 @@ async function consultaUnificada(expediente) {
       return null;
     }
     
-    // Si llegamos aquí, el expediente existe, obtener el resto de datos
+    // Establecer timeout para consultas secundarias
+    const QUERY_TIMEOUT = 5000; // 5 segundos
+    
+    // Función para crear promesa con timeout
+    const withTimeout = (promise, timeoutMs) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), timeoutMs)
+        )
+      ]);
+    };
+    
+    // Realizar consultas en paralelo con manejo de errores
     const [
       costos,
       unidad,
       ubicacion,
       tiempos
     ] = await Promise.all([
-      telnyxService.obtenerExpedienteCosto(expediente),
-      telnyxService.obtenerExpedienteUnidadOp(expediente),
-      telnyxService.obtenerExpedienteUbicacion(expediente),
-      telnyxService.obtenerExpedienteTiempos(expediente)
+      withTimeout(telnyxService.obtenerExpedienteCosto(expediente), QUERY_TIMEOUT)
+        .catch(error => {
+          console.error(`⚠️ Error al obtener costos: ${error.message}`);
+          return {};
+        }),
+      withTimeout(telnyxService.obtenerExpedienteUnidadOp(expediente), QUERY_TIMEOUT)
+        .catch(error => {
+          console.error(`⚠️ Error al obtener unidad: ${error.message}`);
+          return {};
+        }),
+      withTimeout(telnyxService.obtenerExpedienteUbicacion(expediente), QUERY_TIMEOUT)
+        .catch(error => {
+          console.error(`⚠️ Error al obtener ubicación: ${error.message}`);
+          return {};
+        }),
+      withTimeout(telnyxService.obtenerExpedienteTiempos(expediente), QUERY_TIMEOUT)
+        .catch(error => {
+          console.error(`⚠️ Error al obtener tiempos: ${error.message}`);
+          return {};
+        })
     ]);
     
     // Construir objeto unificado con todos los datos
     const datosUnificados = {
       expediente,
       datosGenerales,
-      costos,
-      unidad,
-      ubicacion,
-      tiempos,
+      costos: costos || {},
+      unidad: unidad || {},
+      ubicacion: ubicacion || {},
+      tiempos: tiempos || {},
       timestamp: Date.now(),
       estatus: datosGenerales.estatus || 'Desconocido'
     };
+    
+    // Almacenar en caché
+    storeInCache(expediente, datosUnificados);
     
     console.log(`✅ Consulta unificada completada para expediente: ${expediente}`);
     return datosUnificados;
   } catch (error) {
     console.error('❌ Error en consulta unificada:', error);
-    // Propagar el error para manejo adecuado en el controlador
     throw error;
   }
 }
 
 /**
- * Formatea la información del expediente para presentación en IVR
- * @param {Object} datosUnificados - Datos completos del expediente
- * @returns {Object} Datos formateados para IVR
+ * Limpia el caché de expedientes
  */
-function formatearDatosParaIVR(datosUnificados) {
-  if (!datosUnificados) return null;
-  
-  const { datosGenerales, costos, unidad, ubicacion, tiempos } = datosUnificados;
-  
-  // Formato para datos generales
-  const mensajeGeneral = `Expediente encontrado. ${datosGenerales.nombre || 'Cliente'}. ` +
-                        `Vehículo: ${datosGenerales.vehiculo || 'No especificado'}. ` +
-                        `Estado: ${datosGenerales.estatus || 'En proceso'}. ` +
-                        `Servicio: ${datosGenerales.servicio || 'No especificado'}. ` +
-                        `Destino: ${datosGenerales.destino || 'No especificado'}.`;
-  
-  // Formato para costos
-  let mensajeCostos = '';
-  if (costos) {
-    let desglose = '';
-    if (datosGenerales.servicio === 'Local') {
-      desglose = `${costos.km || 0} km plano ${costos.plano || 0}`;
-    } else if (datosGenerales.servicio === 'Carretero') {
-      const banderazoInfo = costos.banderazo ? `banderazo ${costos.banderazo}` : '';
-      const costoKmInfo = costos.costoKm ? `costo Km ${costos.costoKm}` : '';
-      desglose = `${costos.km || 0} km ${banderazoInfo} ${costoKmInfo}`;
-    }
+function clearCache() {
+  const count = expedienteCache.size;
+  expedienteCache.clear();
+  console.log(`🧹 Caché limpiado completamente. ${count} expedientes eliminados.`);
+}
 
-    let detalles = [];
-    if (costos.casetaACobro > 0) detalles.push(`Caseta de cobro: ${costos.casetaACobro}`);
-    if (costos.casetaCubierta > 0) detalles.push(`Caseta cubierta: ${costos.casetaCubierta}`);
-    if (costos.resguardo > 0) detalles.push(`Resguardo: ${costos.resguardo}`);
-    if (costos.maniobras > 0) detalles.push(`Maniobras: ${costos.maniobras}`);
-    if (costos.horaEspera > 0) detalles.push(`Hora de espera: ${costos.horaEspera}`);
-    if (costos.Parking > 0) detalles.push(`Parking: ${costos.Parking}`);
-    if (costos.Otros > 0) detalles.push(`Otros: ${costos.Otros}`);
-    if (costos.excedente > 0) detalles.push(`Excedente: ${costos.excedente}`);
-
-    mensajeCostos = `El costo total es ${costos.costo || 0}. Desglose: ${desglose}. `;
-    if (detalles.length > 0) {
-      mensajeCostos += `Detalles adicionales: ${detalles.join(', ')}`;
-    }
-  }
-  
-  // Formato para unidad
-  let mensajeUnidad = '';
-  if (unidad) {
-    mensajeUnidad = `Datos de la unidad: ` +
-                   `Operador: ${unidad.operador || 'No asignado'}. ` +
-                   `Tipo de Grúa: ${unidad.tipoGrua || 'No especificado'}. ` +
-                   `Color: ${unidad.color || 'No especificado'}. ` +
-                   `Número Económico: ${unidad.unidadOperativa || 'No especificado'}. ` +
-                   `Placas: ${unidad.placas || unidad.placa || 'No especificado'}.`;
-  }
-  
-  // Formato para ubicación
-  let mensajeUbicacion = '';
-  if (ubicacion) {
-    mensajeUbicacion = `Ubicación y Tiempo Restante. ` +
-                      `Tiempo estimado de llegada: ${ubicacion.tiempoRestante || 'No disponible'}.`;
-    
-    if (ubicacion.ubicacionGrua) {
-      const coords = ubicacion.ubicacionGrua.trim().split(",");
-      const urlUbicacion = `https://www.google.com/maps/search/?api=1&query=${coords[0]}%2C${coords[1]}`;
-      mensajeUbicacion += ` Ubicación disponible en Google Maps.`;
-    }
-  }
-  
-  // Formato para tiempos
-  let mensajeTiempos = '';
-  if (tiempos) {
-    mensajeTiempos = `Tiempos del Expediente. ` +
-                    `Contacto: ${tiempos.tc || 'No registrado'}. ` +
-                    `Término: ${tiempos.tt || 'No registrado'}.`;
-  }
-  
+/**
+ * Obtiene estadísticas del caché
+ * @returns {Object} Estadísticas
+ */
+function getCacheStats() {
   return {
-    mensajeGeneral,
-    mensajeCostos,
-    mensajeUnidad,
-    mensajeUbicacion,
-    mensajeTiempos,
-    estatus: datosGenerales.estatus || 'En proceso'
+    count: expedienteCache.size,
+    items: Array.from(expedienteCache.keys()),
+    timestamp: Date.now()
   };
 }
 
 module.exports = {
   consultaUnificada,
-  formatearDatosParaIVR
+  clearCache,
+  getCacheStats
 };

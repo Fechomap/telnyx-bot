@@ -1,18 +1,19 @@
 /**
- * Servidor TeXML principal optimizado para AI Assistant
- * Sistema conversacional para consulta de expedientes
- * Versión 3.0
+ * Servidor principal avanzado para arquitectura TeXML
+ * Implementa todos los endpoints necesarios para IVR con soporte para características avanzadas
+ * Versión 2.2 con optimizaciones de rendimiento y reconocimiento de voz
  */
 require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const compression = require('compression');
-const aiRoutes = require('./src/routes/aiRoutes');
-const texmlRoutes = require('./src/routes/texmlRoutes'); // Mantener para compatibilidad
+const texmlRoutes = require('./src/routes/texmlRoutes');
 const sessionCache = require('./src/cache/sessionCache');
 const config = require('./src/config/texml');
+const { ERROR_TYPES, respondWithError } = require('./src/texml/handlers/errorHandler');
 const monitoring = require('./src/utils/monitoring');
-const dashboard = require('./src/utils/dashboard');
+const { formatearDatosParaIVR, clearCache } = require('./src/services/optimizedDataService');
+const XMLBuilder = require('./src/texml/helpers/xmlBuilder');
 
 // Inicializar aplicación Express
 const app = express();
@@ -53,7 +54,6 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     texml_status: 'Ready',
-    ai_status: config.ai.enabled ? 'Enabled' : 'Disabled',
     active_sessions: sessionCache.getActiveSessionsCount(),
     config_status: config ? '✅' : '❌',
     uptime: metricsSummary.uptime,
@@ -74,8 +74,7 @@ app.post('/admin/clear-cache', (req, res) => {
   }
   
   // Limpiar caché
-  const dataService = require('./src/services/dataService');
-  dataService.clearCache();
+  clearCache();
   sessionCache.cleanExpiredSessions();
   
   res.json({ 
@@ -85,10 +84,7 @@ app.post('/admin/clear-cache', (req, res) => {
   });
 });
 
-// Montar rutas AI (principales)
-app.use('/', aiRoutes);
-
-// Montar rutas TeXML antiguas (compatibilidad)
+// Montar rutas TeXML
 app.use('/', texmlRoutes);
 
 // Ruta de fallback para URLs desconocidas
@@ -100,8 +96,22 @@ app.use((req, res, next) => {
   console.warn(`⚠️ Ruta no encontrada: ${req.url}`);
   monitoring.trackError('route_not_found', req.url, { method: req.method });
   
-  // Redirigir al endpoint de bienvenida
-  res.redirect('/welcome');
+  // Si es una solicitud que espera XML, responder con TeXML
+  if (req.get('Accept')?.includes('xml') || req.url.includes('/texml') || req.url.match(/^\/(welcome|expediente|respuesta|agent)/)) {
+    const errorXML = XMLBuilder.buildResponse([
+      XMLBuilder.addSay("Lo sentimos, la opción solicitada no está disponible."),
+      XMLBuilder.addRedirect("/welcome")
+    ]);
+    
+    res.header('Content-Type', 'application/xml');
+    return res.send(errorXML);
+  }
+  
+  // Para otras solicitudes, responder con JSON
+  res.status(404).json({ 
+    error: 'Not Found',
+    message: 'The requested resource does not exist'
+  });
 });
 
 // Middleware mejorado para manejo de errores
@@ -119,8 +129,16 @@ app.use((err, req, res, next) => {
     return next(err);
   }
   
-  // Redirigir al endpoint de bienvenida
-  res.redirect('/welcome');
+  // Si es una solicitud que espera XML, responder con TeXML
+  if (req.get('Accept')?.includes('xml') || req.url.includes('/texml') || req.url.match(/^\/(welcome|expediente|respuesta|agent)/)) {
+    respondWithError(res, ERROR_TYPES.SYSTEM_ERROR);
+  } else {
+    // Para otras solicitudes, responder con JSON
+    res.status(500).json({ 
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred'
+    });
+  }
 });
 
 // Manejador para señales de terminación
@@ -145,13 +163,11 @@ const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   const timestamp = new Date().toISOString();
   console.log(`
-🚀 [${timestamp}] Servidor TeXML AI v3.0 iniciado:
+🚀 [${timestamp}] Servidor TeXML v2.2 iniciado:
 - Puerto: ${PORT}
 - Base URL: ${config.service.baseUrl || 'No configurada'}
 - Caller ID: ${config.service.callerId || 'No configurado'}
 - Connection ID: ${config.service.connectionId || 'No configurado'}
-- AI Assistant: ${config.ai.enabled ? '✅' : '❌'}
-- AI Model: ${config.ai.model}
 - Transferencia a agentes: ${config.transfer.enabled ? '✅' : '❌'}
 - Reconocimiento de voz: ✅
 - Caché optimizado: ✅
@@ -163,10 +179,5 @@ const server = app.listen(PORT, () => {
 
 // Configurar timeout para el servidor
 server.timeout = 30000; // 30 segundos
-
-// Configurar dashboard si está habilitado
-if (process.env.DASHBOARD_ENABLED === 'true') {
-  dashboard.setupDashboard(app);
-}
 
 module.exports = app;

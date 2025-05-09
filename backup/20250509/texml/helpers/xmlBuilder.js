@@ -99,33 +99,44 @@ class XMLBuilder {
   }
 
   /**
-   * Agrega elemento para AI Assistant optimizado para conversación
+   * Agrega elemento para AI Assistant (integración avanzada con IA)
    * @param {Object} options - Opciones de configuración
    * @returns {string} Elemento AI Assistant en XML
    */
   static addAIAssistant(options = {}) {
-    // Importar configuración
+    // Importar configuración TTS
     const config = require('../../config/texml');
-    const aiConfig = config.ai || {};
     const ttsConfig = config.tts || {};
     
-    // Opciones con defaults de configuración
-    const aiProvider = options.aiProvider || aiConfig.provider || 'telnyx';
-    const model = options.model || aiConfig.model || 'meta-llama/Meta-Llama-3-1-70B-Instruct';
+    const aiProvider = options.aiProvider || 'telnyx'; // telnyx, openai, anthropic
+    const model = options.model || 'meta-llama/Meta-Llama-3-1-70B-Instruct';
     const initialPrompt = options.initialPrompt || '';
-    const action = options.action || '/interactuar';
-    const fallbackAction = options.fallbackAction || '/welcome';
+    const action = options.action || '/ai-response';
     const language = options.language || ttsConfig.language || 'es-MX';
-    const voiceName = options.voice || ttsConfig.voice || 'Lupe';
-    const maxTurns = options.maxTurns || aiConfig.maxTurns || '15';
-    const interruptible = options.interruptible || (aiConfig.interruptible ? 'true' : 'false');
-    const contextVars = options.contextVars || null;
-    const enhanced = options.enhanced || 'true';
     
     // Usar el formato correcto para la voz
-    let voiceFormat = `Polly.${voiceName}-Neural`;
+    let voiceFormat = "Polly.Mia-Neural";
+    if (options.voice) {
+      switch (options.voice.toLowerCase()) {
+        case "lupe":
+          voiceFormat = "Polly.Lupe-Neural";
+          break;
+        case "pedro":
+          voiceFormat = "Polly.Pedro-Neural";
+          break;
+        case "joanna":
+          voiceFormat = "Polly.Joanna-Neural";
+          break;
+        case "matthew":
+          voiceFormat = "Polly.Matthew-Neural";
+          break;
+      }
+    }
     
-    // Construir atributos del elemento
+    const maxTurns = options.maxTurns || '5';
+    const interruptible = options.interruptible || 'true';
+    const fallbackAction = options.fallbackAction || '/expediente';
+    
     let aiAssistantAttrs = `
       provider="${aiProvider}" 
       model="${model}" 
@@ -134,26 +145,14 @@ class XMLBuilder {
       maxTurns="${maxTurns}"
       interruptible="${interruptible}"
       action="${action}"
-      fallbackAction="${fallbackAction}"
-      enhanced="${enhanced}"`;
+      fallbackAction="${fallbackAction}"`;
     
-    // Si hay contexto de variables, construir elementos Variable
-    let contextElements = '';
-    if (contextVars && typeof contextVars === 'object') {
-      for (const [key, value] of Object.entries(contextVars)) {
-        if (value !== undefined && value !== null) {
-          contextElements += `    <Variable name="${key}" value="${this.escapeXML(String(value))}"/>\n`;
-        }
-      }
-    }
-    
-    // Construir el elemento completo
-    if (initialPrompt || contextElements) {
-      return `  <AIAssistant${aiAssistantAttrs}>\n${contextElements}${
-        initialPrompt ? `    ${this.escapeXML(initialPrompt)}\n` : ''
-      }  </AIAssistant>\n`;
+    if (initialPrompt) {
+      // Para prompt inicial
+      return `  <AIAssistant ${aiAssistantAttrs}>\n    ${this.escapeXML(initialPrompt)}\n  </AIAssistant>\n`;
     } else {
-      return `  <AIAssistant${aiAssistantAttrs}></AIAssistant>\n`;
+      // Sin prompt inicial
+      return `  <AIAssistant ${aiAssistantAttrs}></AIAssistant>\n`;
     }
   }
 
