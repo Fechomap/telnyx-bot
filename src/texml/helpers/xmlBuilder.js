@@ -26,43 +26,36 @@ class XMLBuilder {
    * @returns {string} Elemento Say en XML
    */
   static addSay(text, options = {}) {
-    // REEMPLAZAR ESTE CÓDIGO:
-    /*
-    // Usar opciones proporcionadas o valores de configuración
-    const provider = 'amazon';             
-    const voice = 'Mia';                   
-    const language = 'es-MX';              
-    const engine = 'neural';              
-    const rate = '1.0';                    
-    const pitch = '1.0';                   
+    // Usar el formato específico requerido por Telnyx
+    // El formato correcto es voice="Polly.Mia-Neural" en lugar de los múltiples atributos
     
-    // Construir atributos para el elemento Say
-    let sayAttrs = `provider="${provider}" voice="${voice}" language="${language}" engine="${engine}"`;
-    if (rate !== '1.0') sayAttrs += ` rate="${rate}"`;
-    if (pitch !== '1.0') sayAttrs += ` pitch="${pitch}"`;
-    */
+    // Valor por defecto: voz Mia en español mexicano
+    let voiceFormat = "Polly.Mia-Neural";
     
-    // NUEVO CÓDIGO:
-    // Usar el formato específico requerido por Telnyx (prefijo "Polly." y sufijo "-Neural")
-    const voiceFormat = "Polly.Mia-Neural"; // Voz femenina Mia de Amazon Polly
-    
-    // Construir atributos usando la sintaxis correcta de Telnyx TeXML
-    let sayAttrs = `voice="${voiceFormat}"`;
-    
-    // Puedes añadir soporte para otras voces si es necesario
+    // Permitir personalización de voz si se proporciona en options
     if (options && options.voice) {
-      if (options.voice === "Lupe") {
-        sayAttrs = `voice="Polly.Lupe-Neural"`;
-      } else if (options.voice === "Pedro") {
-        sayAttrs = `voice="Polly.Pedro-Neural"`;
-      } else if (options.voice === "Joanna") {
-        sayAttrs = `voice="Polly.Joanna-Neural"`;
-      } else if (options.voice === "Matthew") {
-        sayAttrs = `voice="Polly.Matthew-Neural"`;
+      switch (options.voice.toLowerCase()) {
+        case "lupe":
+          voiceFormat = "Polly.Lupe-Neural";
+          break;
+        case "pedro":
+          voiceFormat = "Polly.Pedro-Neural";
+          break;
+        case "joanna":
+          voiceFormat = "Polly.Joanna-Neural";
+          break;
+        case "matthew":
+          voiceFormat = "Polly.Matthew-Neural";
+          break;
+        case "mia":
+        default:
+          voiceFormat = "Polly.Mia-Neural";
+          break;
       }
     }
     
-    return `  <Say ${sayAttrs}>\n    ${this.escapeXML(text)}\n  </Say>\n`;
+    // Construir el elemento Say con el atributo voice correcto
+    return `  <Say voice="${voiceFormat}">\n    ${this.escapeXML(text)}\n  </Say>\n`;
   }
 
   /**
@@ -120,8 +113,26 @@ class XMLBuilder {
     const initialPrompt = options.initialPrompt || '';
     const action = options.action || '/ai-response';
     const language = options.language || ttsConfig.language || 'es-MX';
-    const voice = options.voice || ttsConfig.voice || 'Mia';
-    const voiceProvider = options.provider || ttsConfig.provider || 'amazon';
+    
+    // Usar el formato correcto para la voz
+    let voiceFormat = "Polly.Mia-Neural";
+    if (options.voice) {
+      switch (options.voice.toLowerCase()) {
+        case "lupe":
+          voiceFormat = "Polly.Lupe-Neural";
+          break;
+        case "pedro":
+          voiceFormat = "Polly.Pedro-Neural";
+          break;
+        case "joanna":
+          voiceFormat = "Polly.Joanna-Neural";
+          break;
+        case "matthew":
+          voiceFormat = "Polly.Matthew-Neural";
+          break;
+      }
+    }
+    
     const maxTurns = options.maxTurns || '5';
     const interruptible = options.interruptible || 'true';
     const fallbackAction = options.fallbackAction || '/expediente';
@@ -130,8 +141,7 @@ class XMLBuilder {
       provider="${aiProvider}" 
       model="${model}" 
       language="${language}" 
-      voice="${voice}"
-      voiceProvider="${voiceProvider}"
+      voice="${voiceFormat}"
       maxTurns="${maxTurns}"
       interruptible="${interruptible}"
       action="${action}"
@@ -158,8 +168,26 @@ class XMLBuilder {
     
     const action = options.action || '/voicebot-response';
     const language = options.language || ttsConfig.language || 'es-MX';
-    const voice = options.voice || ttsConfig.voice || 'Mia';
-    const voiceProvider = options.provider || ttsConfig.provider || 'amazon';
+    
+    // Usar el formato correcto para la voz
+    let voiceFormat = "Polly.Mia-Neural";
+    if (options.voice) {
+      switch (options.voice.toLowerCase()) {
+        case "lupe":
+          voiceFormat = "Polly.Lupe-Neural";
+          break;
+        case "pedro":
+          voiceFormat = "Polly.Pedro-Neural";
+          break;
+        case "joanna":
+          voiceFormat = "Polly.Joanna-Neural";
+          break;
+        case "matthew":
+          voiceFormat = "Polly.Matthew-Neural";
+          break;
+      }
+    }
+    
     const context = options.context || '';
     const maxTurns = options.maxTurns || '5';
     const interruptible = options.interruptible || 'true';
@@ -167,8 +195,7 @@ class XMLBuilder {
     let voiceBotAttrs = `
       action="${action}" 
       language="${language}" 
-      voice="${voice}"
-      voiceProvider="${voiceProvider}"
+      voice="${voiceFormat}"
       maxTurns="${maxTurns}"
       interruptible="${interruptible}"`;
     

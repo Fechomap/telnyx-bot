@@ -15,12 +15,9 @@ function generateWelcomeXML() {
     "Para seguimiento de expediente, presione 1 o diga 'expediente'. " +
     "Para solicitar o cotizar un servicio, presione 2 o diga 'servicio'.";
   
-  // Configurar opciones para voz
+  // Simplificar opciones para usar solo voice
   const sayOptions = {
-    provider: 'amazon',
-    voice: 'Mia',
-    language: 'es-MX',
-    engine: 'neural'
+    voice: 'Mia'
   };
   
   // Crear elemento Say independiente
@@ -39,7 +36,6 @@ function generateWelcomeXML() {
     speechModel: 'phone_call',
     language: 'es-MX',
     hints: 'expediente,consulta,servicio,cotizar,uno,dos'
-    // Ya no anidamos el Say dentro del Gather
   };
   
   // Crear elemento Gather
@@ -59,16 +55,15 @@ function generateWelcomeWithAIXML() {
     "¿En qué puedo ayudarte hoy? Puedes preguntarme sobre tu expediente, " +
     "consultar el estado, costos, o cualquier otra información que necesites.";
   
-  // Configurar AI Assistant con opciones avanzadas
+  // Simplificar opciones AI
   const aiOptions = {
-    aiProvider: 'telnyx',  // Usando el servicio nativo de Telnyx
+    aiProvider: 'telnyx',
     model: 'meta-llama/Meta-Llama-3-1-70B-Instruct',
     initialPrompt: initialPrompt,
     action: '/ai-response',
     fallbackAction: '/expediente',
     language: 'es-MX',
-    voice: 'Mia',
-    provider: 'amazon',
+    voice: 'Mia',  // Solo especificar voice
     maxTurns: '5',
     interruptible: 'true'
   };
@@ -89,15 +84,12 @@ function generateRequestExpedienteXML() {
     "Por favor, ingrese su número de expediente seguido de la tecla numeral " +
     "o díctelo claramente dígito por dígito.";
   
-  // Configurar opciones avanzadas para voz
+  // Simplificar opciones para usar solo voice
   const sayOptions = {
-    provider: 'amazon',
-    voice: 'Mia',
-    language: 'es-MX',
-    engine: 'neural'
+    voice: 'Mia'
   };
   
-  console.log('🔊 Usando voz Amazon Polly Mia para solicitud de expediente');
+  console.log('🔊 Usando voz Mia para solicitud de expediente');
   
   // Crear elemento Say
   const sayElement = XMLBuilder.addSay(requestMessage, sayOptions);

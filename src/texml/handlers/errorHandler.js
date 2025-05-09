@@ -128,15 +128,12 @@ function generateErrorResponse(errorType, options = {}) {
   // Elementos a incluir en la respuesta
   const elements = [];
   
-  // Configurar opciones de voz para Amazon Polly
+  // Configurar opciones de voz simplificadas
   const sayOptions = {
-    provider: 'amazon',
-    voice: 'Mia',
-    language: 'es-MX',
-    engine: 'neural'
+    voice: 'Mia'
   };
   
-  console.log('🔊 Usando voz Amazon Polly Mia para mensaje de error');
+  console.log('🔊 Usando voz Mia para mensaje de error');
   
   // Agregar mensaje de error
   elements.push(XMLBuilder.addSay(errorMessage, sayOptions));

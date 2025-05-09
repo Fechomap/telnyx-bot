@@ -18,34 +18,37 @@ describe('XMLBuilder', () => {
   });
   
   describe('addSay', () => {
-    it('should create a Say element with default options', () => {
+    it('should create a Say element with default options (Polly.Mia-Neural)', () => {
       const text = 'Hello, this is a test';
       const result = XMLBuilder.addSay(text);
       
-      expect(result).to.include('provider="amazon"');
-      expect(result).to.include('voice="Mia"');
-      expect(result).to.include('language="es-MX"');
-      expect(result).to.include('engine="neural"');
+      // Verificar que usa el formato correcto de Polly
+      expect(result).to.include('voice="Polly.Mia-Neural"');
       expect(result).to.include('Hello, this is a test');
       expect(result).to.include('</Say>');
+      
+      // Verificar que NO incluye los atributos antiguos
+      expect(result).to.not.include('provider="amazon"');
+      expect(result).to.not.include('language="es-MX"');
+      expect(result).to.not.include('engine="neural"');
     });
     
-    it('should create a Say element with custom options', () => {
+    it('should create a Say element with custom voice option', () => {
       const text = 'Hello, custom voice';
       const options = {
-        provider: 'amazon',
-        voice: 'Lupe',
-        language: 'en-US',
-        engine: 'standard'
+        voice: 'Lupe'
       };
       
       const result = XMLBuilder.addSay(text, options);
       
-      expect(result).to.include('provider="amazon"');
-      expect(result).to.include('voice="Lupe"');
-      expect(result).to.include('language="en-US"');
-      expect(result).to.include('engine="standard"');
+      // Verificar que usa el formato correcto de Polly para Lupe
+      expect(result).to.include('voice="Polly.Lupe-Neural"');
       expect(result).to.include('Hello, custom voice');
+      
+      // Verificar que NO incluye los atributos antiguos
+      expect(result).to.not.include('provider="amazon"');
+      expect(result).to.not.include('language="es-MX"');
+      expect(result).to.not.include('engine="neural"');
     });
     
     it('should escape special characters in text', () => {
@@ -182,6 +185,7 @@ describe('XMLBuilder', () => {
   
   describe('buildResponse', () => {
     it('should build a complete XML response with multiple elements', () => {
+      // Crear elementos con el nuevo formato de voz
       const elements = [
         XMLBuilder.addSay('Welcome to the service.'),
         XMLBuilder.addGather({
@@ -193,15 +197,25 @@ describe('XMLBuilder', () => {
       
       const result = XMLBuilder.buildResponse(elements);
       
+      // Verificaciones generales
       expect(result).to.include('<?xml version="1.0" encoding="UTF-8"?>');
       expect(result).to.include('<Response>');
-      expect(result).to.include('<Say provider="amazon" voice="Mia" language="es-MX" engine="neural">');
+      
+      // Verificar el nuevo formato de voz
+      expect(result).to.include('<Say voice="Polly.Mia-Neural">');
       expect(result).to.include('Welcome to the service.');
+      
+      // Verificar otros elementos
       expect(result).to.include('action="/menu"');
       expect(result).to.include('method="POST"');
       expect(result).to.include('numDigits="1"');
       expect(result).to.include('<Hangup>');
       expect(result).to.include('</Response>');
+      
+      // Verificar que NO incluye los atributos antiguos
+      expect(result).to.not.include('provider="amazon"');
+      expect(result).to.not.include('language="es-MX"');
+      expect(result).to.not.include('engine="neural"');
     });
   });
 });
