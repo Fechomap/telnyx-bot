@@ -16,18 +16,25 @@ const monitoring = require('../utils/monitoring');
  */
 async function handleWelcome(req, res) {
   try {
-    console.log('📞 Nueva llamada recibida, usando Say + Gather');
+    console.log('📞 Nueva llamada recibida, configurando Gather con mejores parámetros');
     
     const responseXML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather action="/procesar-expediente" method="POST" input="dtmf speech" language="es-MX" timeout="10">
+  <Gather 
+    action="/procesar-expediente" 
+    method="POST" 
+    input="dtmf" 
+    timeout="15"
+    finishOnKey="#"
+    validDigits="0123456789">
     <Say voice="Polly.Mia-Neural">
-      Bienvenido al sistema de consulta de expedientes. Por favor, diga o ingrese el número de expediente.
+      Bienvenido al sistema de consulta de expedientes. Por favor, ingrese el número de expediente usando el teclado numérico y presione numeral al terminar.
     </Say>
   </Gather>
+  <Redirect>/welcome</Redirect>
 </Response>`;
     
-    console.log('📝 XML de respuesta:\n', responseXML);
+    console.log('📝 XML de respuesta (solo DTMF):\n', responseXML);
     
     res.header('Content-Type', 'application/xml');
     res.send(responseXML);
@@ -48,49 +55,54 @@ async function handleProcessExpediente(req, res) {
     // Obtener entrada del usuario (voz y/o DTMF)
     const userInput = req.body.SpeechResult || req.query.SpeechResult || '';
     const digits = req.body.Digits || req.query.Digits || '';
+    const confidence = parseFloat(req.body.Confidence || req.query.Confidence || '0');
     
-    console.log(`🔍 Procesando posible expediente. Voz: "${userInput}", DTMF: "${digits}"`);
+    console.log(`🔍 Procesando expediente:`);
+    console.log(`   Voz: "${userInput}"`);
+    console.log(`   DTMF: "${digits}"`);
+    console.log(`   Confianza: ${confidence}`);
     
     // Extraer número de expediente
     let expediente = '';
     
-    if (digits) {
+    if (digits && digits.trim()) {
       // Priorizar DTMF si está disponible
-      expediente = digits.replace(/#$/, ''); // Eliminar # final si existe
-    } else if (userInput) {
+      expediente = digits.replace(/#$/, '').trim();
+      console.log(`✅ Expediente de DTMF: "${expediente}"`);
+    } else if (userInput && confidence > 0.5) { // Solo usar voz si la confianza es alta
       // Extraer de voz usando utilidad
       expediente = speechUtils.extractExpedienteFromText(userInput);
       console.log(`🔢 Expediente extraído de voz: "${expediente}"`);
     }
     
-    // Si no se identificó un expediente válido
-    if (!expediente) {
-      console.log('❌ No se pudo identificar un expediente válido');
+    // Si no se identificó un expediente válido o es muy corto
+    if (!expediente || expediente.length < 3) {
+      console.log('❌ Expediente inválido o muy corto');
       
-      // Pedir nuevamente con AI Assistant
-      const retryPrompt = 
-        "No pude identificar un número de expediente válido. " +
-        "Por favor, intenta nuevamente diciendo o ingresando el número del expediente que deseas consultar.";
-      
-      const aiOptions = {
-        aiProvider: config.ai.provider,
-        model: config.ai.model,
-        initialPrompt: retryPrompt,
-        action: config.routes.processExpediente,
-        fallbackAction: config.routes.welcome,
-        language: config.tts.language,
-        voice: config.tts.voice,
-        maxTurns: String(config.ai.maxTurns),
-        interruptible: 'true',
-        enhanced: 'true'
-      };
-      
-      const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-      const responseXML = XMLBuilder.buildResponse([aiElement]);
+      const retryXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    No pude entender el número de expediente.
+  </Say>
+  <Gather 
+    action="/procesar-expediente" 
+    method="POST" 
+    input="dtmf" 
+    timeout="15"
+    finishOnKey="#"
+    validDigits="0123456789">
+    <Say voice="Polly.Mia-Neural">
+      Por favor, ingrese el número de expediente usando el teclado numérico y presione numeral al terminar.
+    </Say>
+  </Gather>
+  <Redirect>/welcome</Redirect>
+</Response>`;
       
       res.header('Content-Type', 'application/xml');
-      return res.send(responseXML);
+      return res.send(retryXML);
     }
+    
+    console.log(`✅ Procesando expediente: ${expediente}`);
     
     // Iniciar medición de tiempo para consulta
     const endDataQueryTimer = monitoring.startDataQuery();
@@ -110,29 +122,28 @@ async function handleProcessExpediente(req, res) {
       console.log(`❌ Expediente no encontrado: ${expediente}`);
       monitoring.trackExpediente('notFound', expediente);
       
-      // Mensaje de expediente no encontrado con AI
-      const notFoundPrompt = 
-        `No se encontró el expediente número ${expediente}. ` +
-        "Por favor, verifica el número e intenta nuevamente, o dime si necesitas ayuda con otro asunto.";
-      
-      const aiOptions = {
-        aiProvider: config.ai.provider,
-        model: config.ai.model,
-        initialPrompt: notFoundPrompt,
-        action: config.routes.processExpediente,
-        fallbackAction: config.routes.welcome,
-        language: config.tts.language,
-        voice: config.tts.voice,
-        maxTurns: String(config.ai.maxTurns),
-        interruptible: 'true',
-        enhanced: 'true'
-      };
-      
-      const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-      const responseXML = XMLBuilder.buildResponse([aiElement]);
+      // Mensaje simple sin AI para reintentar
+      const notFoundXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    No se encontró el expediente número ${expediente}.
+  </Say>
+  <Gather 
+    action="/procesar-expediente" 
+    method="POST" 
+    input="dtmf" 
+    timeout="15"
+    finishOnKey="#"
+    validDigits="0123456789">
+    <Say voice="Polly.Mia-Neural">
+      Por favor, verifique el número e intente nuevamente.
+    </Say>
+  </Gather>
+  <Redirect>/welcome</Redirect>
+</Response>`;
       
       res.header('Content-Type', 'application/xml');
-      return res.send(responseXML);
+      return res.send(notFoundXML);
     }
     
     // Expediente encontrado
@@ -149,38 +160,37 @@ async function handleProcessExpediente(req, res) {
     // Registrar sesión activa
     monitoring.trackSessionEvent('active', sessionId);
     
-    // Formatear datos para AI Assistant
+    // Formatear datos para respuesta
     const context = speechUtils.formatContextForAI(datosExpediente);
     
-    // Crear prompt inicial con información relevante
-    const successPrompt = 
-      `He encontrado el expediente número ${expediente}. ` +
-      `Cliente: ${context.nombre}. ` +
-      `Vehículo: ${context.vehiculo}. ` +
-      `Estado: ${context.estatus}. ` +
-      `¿Qué información necesitas sobre este expediente? Puedes preguntarme por costos, ` +
-      `datos de la unidad, ubicación, tiempos o cualquier otra información disponible.`;
-    
-    // Configurar AI Assistant con variables de contexto
-    const aiOptions = {
-      aiProvider: config.ai.provider,
-      model: config.ai.model,
-      initialPrompt: successPrompt,
-      action: `${config.routes.interact}?sessionId=${sessionId}`,
-      fallbackAction: config.routes.welcome,
-      language: config.tts.language,
-      voice: config.tts.voice,
-      maxTurns: String(config.ai.maxTurns),
-      interruptible: 'true',
-      enhanced: 'true',
-      contextVars: context  // Variables de contexto con TODOS los datos
-    };
-    
-    const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-    const responseXML = XMLBuilder.buildResponse([aiElement]);
+    // Primero dar información básica, luego menú de opciones
+    const successXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    He encontrado el expediente número ${expediente}.
+    Cliente: ${context.nombre}.
+    Vehículo: ${context.vehiculo}.
+    Estado: ${context.estatus}.
+  </Say>
+  <Gather 
+    action="/interactuar?sessionId=${sessionId}" 
+    method="POST" 
+    input="dtmf" 
+    numDigits="1"
+    timeout="10">
+    <Say voice="Polly.Mia-Neural">
+      Para consultar costos, presione 1.
+      Para datos de la unidad, presione 2.
+      Para ubicación, presione 3.
+      Para tiempos, presione 4.
+      Para hablar con un agente, presione 0.
+    </Say>
+  </Gather>
+  <Redirect>/welcome</Redirect>
+</Response>`;
     
     res.header('Content-Type', 'application/xml');
-    return res.send(responseXML);
+    return res.send(successXML);
     
   } catch (error) {
     console.error('❌ Error al procesar expediente:', error);
@@ -197,6 +207,9 @@ async function handleInteraction(req, res) {
   try {
     // Obtener ID de sesión
     const sessionId = req.query.sessionId || '';
+    const digits = req.body.Digits || req.query.Digits || '';
+    
+    console.log(`🔢 Opción seleccionada: ${digits} (sesión: ${sessionId})`);
     
     // Validar sesión
     if (!sessionId) {
@@ -213,29 +226,50 @@ async function handleInteraction(req, res) {
       return handleSessionError(req, res);
     }
     
-    // Obtener entrada del usuario
-    const userInput = req.body.SpeechResult || req.query.SpeechResult || '';
+    // Manejar según opción seleccionada
+    let responseMessage = '';
     
-    // Detectar intención del usuario
-    const { intent } = speechUtils.detectUserIntent(userInput);
-    console.log(`🧠 Intención detectada: ${intent}, Entrada: "${userInput}"`);
-    
-    // Manejar según intención
-    switch (intent) {
-      case 'new_expediente':
-        return handleNewExpedienteRequest(req, res, sessionId);
-        
-      case 'agent':
+    switch (digits) {
+      case '1': // Costos
+        responseMessage = formatCostsMessage(expedienteData);
+        break;
+      case '2': // Unidad
+        responseMessage = formatUnitMessage(expedienteData);
+        break;
+      case '3': // Ubicación
+        responseMessage = formatLocationMessage(expedienteData);
+        break;
+      case '4': // Tiempos
+        responseMessage = formatTimesMessage(expedienteData);
+        break;
+      case '0': // Agente
         return handleAgentRequest(req, res, sessionId);
-        
-      case 'hangup':
-        return handleHangupRequest(req, res, sessionId);
-        
-      case 'query':
       default:
-        // Continuar conversación normal
-        return handleContinueConversation(req, res, sessionId, expedienteData);
+        responseMessage = "Opción no válida.";
     }
+    
+    // Responder con la información y volver al menú
+    const responseXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    ${responseMessage}
+  </Say>
+  <Gather 
+    action="/interactuar?sessionId=${sessionId}" 
+    method="POST" 
+    input="dtmf" 
+    numDigits="1"
+    timeout="10">
+    <Say voice="Polly.Mia-Neural">
+      Para consultar otra información, seleccione una opción del menú.
+      Costos: 1. Unidad: 2. Ubicación: 3. Tiempos: 4. Agente: 0.
+    </Say>
+  </Gather>
+  <Redirect>/welcome</Redirect>
+</Response>`;
+    
+    res.header('Content-Type', 'application/xml');
+    return res.send(responseXML);
     
   } catch (error) {
     console.error('❌ Error en interacción:', error);
@@ -244,38 +278,63 @@ async function handleInteraction(req, res) {
 }
 
 /**
- * Maneja solicitud de consultar nuevo expediente
- * @param {Object} req - Solicitud Express
- * @param {Object} res - Respuesta Express
- * @param {string} sessionId - ID de la sesión actual
+ * Formatea mensaje de costos
  */
-function handleNewExpedienteRequest(req, res, sessionId) {
-  // Limpiar sesión actual
-  sessionCache.removeSession(sessionId);
-  console.log(`🔄 Usuario solicitó nuevo expediente, eliminando sesión ${sessionId}`);
+function formatCostsMessage(expedienteData) {
+  const costos = expedienteData.costos;
+  if (!costos || !costos.costo) {
+    return "No hay información de costos disponible para este expediente.";
+  }
   
-  // Volver a pedir expediente
-  const newExpedientePrompt = 
-    "De acuerdo. Por favor, dime o ingresa el número del nuevo expediente que deseas consultar.";
+  let message = `El costo total es ${costos.costo}.`;
+  if (costos.km) message += ` Distancia: ${costos.km} kilómetros.`;
+  if (costos.banderazo) message += ` Banderazo: ${costos.banderazo}.`;
   
-  const aiOptions = {
-    aiProvider: config.ai.provider,
-    model: config.ai.model,
-    initialPrompt: newExpedientePrompt,
-    action: config.routes.processExpediente,
-    fallbackAction: config.routes.welcome,
-    language: config.tts.language,
-    voice: config.tts.voice,
-    maxTurns: String(config.ai.maxTurns),
-    interruptible: 'true',
-    enhanced: 'true'
-  };
+  return message;
+}
+
+/**
+ * Formatea mensaje de unidad
+ */
+function formatUnitMessage(expedienteData) {
+  const unidad = expedienteData.unidad;
+  if (!unidad || !unidad.operador) {
+    return "No hay información de la unidad disponible para este expediente.";
+  }
   
-  const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-  const responseXML = XMLBuilder.buildResponse([aiElement]);
+  let message = `Operador: ${unidad.operador}.`;
+  if (unidad.tipoGrua) message += ` Tipo de grúa: ${unidad.tipoGrua}.`;
+  if (unidad.placas) message += ` Placas: ${unidad.placas}.`;
   
-  res.header('Content-Type', 'application/xml');
-  return res.send(responseXML);
+  return message;
+}
+
+/**
+ * Formatea mensaje de ubicación
+ */
+function formatLocationMessage(expedienteData) {
+  const ubicacion = expedienteData.ubicacion;
+  if (!ubicacion || !ubicacion.tiempoRestante) {
+    return "No hay información de ubicación disponible para este expediente.";
+  }
+  
+  return `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}.`;
+}
+
+/**
+ * Formatea mensaje de tiempos
+ */
+function formatTimesMessage(expedienteData) {
+  const tiempos = expedienteData.tiempos;
+  if (!tiempos) {
+    return "No hay información de tiempos disponible para este expediente.";
+  }
+  
+  let message = '';
+  if (tiempos.tc) message += `Tiempo de contacto: ${tiempos.tc}.`;
+  if (tiempos.tt) message += ` Tiempo de término: ${tiempos.tt}.`;
+  
+  return message || "No hay información de tiempos disponible.";
 }
 
 /**
@@ -289,114 +348,33 @@ function handleAgentRequest(req, res, sessionId) {
   
   // Verificar si la transferencia está habilitada
   if (!config.transfer.enabled || !config.transfer.agentNumber) {
-    console.log('❌ Transferencia a agentes deshabilitada en configuración');
+    console.log('❌ Transferencia a agentes deshabilitada');
     
-    // Mensaje de no disponibilidad
-    const unavailableMessage = 
-      "Lo siento, en este momento no es posible transferirte con un agente. " +
-      "¿Hay algo más en lo que pueda ayudarte con el expediente?";
-    
-    const aiOptions = {
-      aiProvider: config.ai.provider,
-      model: config.ai.model,
-      initialPrompt: unavailableMessage,
-      action: `${config.routes.interact}?sessionId=${sessionId}`,
-      fallbackAction: config.routes.welcome,
-      language: config.tts.language,
-      voice: config.tts.voice,
-      maxTurns: String(config.ai.maxTurns),
-      interruptible: 'true',
-      enhanced: 'true'
-    };
-    
-    const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-    const responseXML = XMLBuilder.buildResponse([aiElement]);
+    const unavailableXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    Lo siento, en este momento no es posible transferirle con un agente.
+  </Say>
+  <Redirect>/welcome</Redirect>
+</Response>`;
     
     res.header('Content-Type', 'application/xml');
-    return res.send(responseXML);
+    return res.send(unavailableXML);
   }
   
-  // Mensaje de transferencia
-  const transferMessage = config.transfer.transferMessage || 
-    "Transfiriendo a un agente humano. Por favor espere un momento...";
-  
-  const sayElement = XMLBuilder.addSay(transferMessage, { 
-    voice: config.tts.voice 
-  });
-  
-  // Configurar número de agente
-  const agentNumber = config.transfer.agentNumber;
-  const dialElement = XMLBuilder.addDial(agentNumber, {
-    callerId: config.service.callerId,
-    timeout: '30'
-  });
-  
-  const responseXML = XMLBuilder.buildResponse([sayElement, dialElement]);
+  // Transferir a agente
+  const transferXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    ${config.transfer.transferMessage}
+  </Say>
+  <Dial callerId="${config.service.callerId}" timeout="30">
+    ${config.transfer.agentNumber}
+  </Dial>
+</Response>`;
   
   res.header('Content-Type', 'application/xml');
-  return res.send(responseXML);
-}
-
-/**
- * Maneja solicitud de colgar
- * @param {Object} req - Solicitud Express
- * @param {Object} res - Respuesta Express
- * @param {string} sessionId - ID de la sesión actual
- */
-function handleHangupRequest(req, res, sessionId) {
-  console.log(`👋 Usuario solicitó finalizar la llamada (sesión ${sessionId})`);
-  
-  // Limpiar sesión
-  sessionCache.removeSession(sessionId);
-  
-  // Mensaje de despedida
-  const goodbyeMessage = 
-    "Gracias por comunicarte con nosotros. Que tengas un excelente día. ¡Hasta pronto!";
-  
-  const sayElement = XMLBuilder.addSay(goodbyeMessage, { 
-    voice: config.tts.voice 
-  });
-  
-  const hangupElement = XMLBuilder.addHangup();
-  
-  const responseXML = XMLBuilder.buildResponse([sayElement, hangupElement]);
-  
-  res.header('Content-Type', 'application/xml');
-  return res.send(responseXML);
-}
-
-/**
- * Continúa conversación normal con AI
- * @param {Object} req - Solicitud Express
- * @param {Object} res - Respuesta Express
- * @param {string} sessionId - ID de la sesión actual
- * @param {Object} expedienteData - Datos del expediente
- */
-function handleContinueConversation(req, res, sessionId, expedienteData) {
-  console.log(`💬 Continuando conversación normal (sesión ${sessionId})`);
-  
-  // Formatear datos para AI Assistant
-  const context = speechUtils.formatContextForAI(expedienteData);
-  
-  // Configurar AI Assistant con variables de contexto
-  const aiOptions = {
-    aiProvider: config.ai.provider,
-    model: config.ai.model,
-    action: `${config.routes.interact}?sessionId=${sessionId}`,
-    fallbackAction: config.routes.welcome,
-    language: config.tts.language,
-    voice: config.tts.voice,
-    maxTurns: String(config.ai.maxTurns),
-    interruptible: 'true',
-    enhanced: 'true',
-    contextVars: context  // Actualizar variables de contexto
-  };
-  
-  const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-  const responseXML = XMLBuilder.buildResponse([aiElement]);
-  
-  res.header('Content-Type', 'application/xml');
-  return res.send(responseXML);
+  return res.send(transferXML);
 }
 
 /**
@@ -405,28 +383,16 @@ function handleContinueConversation(req, res, sessionId, expedienteData) {
  * @param {Object} res - Respuesta Express
  */
 function handleSessionError(req, res) {
-  const sessionErrorPrompt = 
-    "Lo siento, parece que la sesión ha expirado. " +
-    "Por favor, dime nuevamente el número de expediente que deseas consultar.";
-  
-  const aiOptions = {
-    aiProvider: config.ai.provider,
-    model: config.ai.model,
-    initialPrompt: sessionErrorPrompt,
-    action: config.routes.processExpediente,
-    fallbackAction: config.routes.welcome,
-    language: config.tts.language,
-    voice: config.tts.voice,
-    maxTurns: String(config.ai.maxTurns),
-    interruptible: 'true',
-    enhanced: 'true'
-  };
-  
-  const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-  const responseXML = XMLBuilder.buildResponse([aiElement]);
+  const sessionErrorXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    Lo siento, la sesión ha expirado.
+  </Say>
+  <Redirect>/welcome</Redirect>
+</Response>`;
   
   res.header('Content-Type', 'application/xml');
-  return res.send(responseXML);
+  return res.send(sessionErrorXML);
 }
 
 /**
@@ -442,29 +408,16 @@ function handleError(req, res, errorContext, error) {
     error: error.message 
   });
   
-  // Mensaje genérico de error
-  const errorPrompt = 
-    "Lo siento, ha ocurrido un problema técnico. " +
-    "¿Te gustaría intentar nuevamente o hablar con un agente?";
-  
-  const aiOptions = {
-    aiProvider: config.ai.provider,
-    model: config.ai.model,
-    initialPrompt: errorPrompt,
-    action: config.routes.processExpediente,
-    fallbackAction: config.routes.welcome,
-    language: config.tts.language,
-    voice: config.tts.voice,
-    maxTurns: String(config.ai.maxTurns),
-    interruptible: 'true',
-    enhanced: 'true'
-  };
-  
-  const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-  const responseXML = XMLBuilder.buildResponse([aiElement]);
+  const errorXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Mia-Neural">
+    Lo siento, ha ocurrido un problema técnico. Por favor intente nuevamente.
+  </Say>
+  <Redirect>/welcome</Redirect>
+</Response>`;
   
   res.header('Content-Type', 'application/xml');
-  return res.send(responseXML);
+  return res.send(errorXML);
 }
 
 module.exports = {
