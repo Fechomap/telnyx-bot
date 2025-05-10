@@ -35,8 +35,8 @@ class XMLBuilder {
     // Permitir personalización de voz si se proporciona en options
     if (options && options.voice) {
       switch (options.voice.toLowerCase()) {
-        case "lupe":
-          voiceFormat = "Polly.Lupe-Neural";
+        case "Mia":
+          voiceFormat = "Polly.Mia-Neural";
           break;
         case "pedro":
           voiceFormat = "Polly.Pedro-Neural";
@@ -113,7 +113,7 @@ class XMLBuilder {
     const initialPrompt = options.initialPrompt || '';
     const action = options.action || '/interactuar';
     const language = options.language || ttsConfig.language || 'es-MX';
-    const voiceName = options.voice || ttsConfig.voice || 'Lupe';
+    const voiceName = options.voice || ttsConfig.voice || 'Mia';
     const maxTurns = options.maxTurns || aiConfig.maxTurns || '15';
     const interruptible = options.interruptible || 'true';
     
@@ -162,8 +162,8 @@ class XMLBuilder {
     let voiceFormat = "Polly.Mia-Neural";
     if (options.voice) {
       switch (options.voice.toLowerCase()) {
-        case "lupe":
-          voiceFormat = "Polly.Lupe-Neural";
+        case "Mia":
+          voiceFormat = "Polly.Mia-Neural";
           break;
         case "pedro":
           voiceFormat = "Polly.Pedro-Neural";

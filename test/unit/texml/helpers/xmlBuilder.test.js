@@ -36,13 +36,13 @@ describe('XMLBuilder', () => {
     it('should create a Say element with custom voice option', () => {
       const text = 'Hello, custom voice';
       const options = {
-        voice: 'Lupe'
+        voice: 'Mia'
       };
       
       const result = XMLBuilder.addSay(text, options);
       
-      // Verificar que usa el formato correcto de Polly para Lupe
-      expect(result).to.include('voice="Polly.Lupe-Neural"');
+      // Verificar que usa el formato correcto de Polly para Mia
+      expect(result).to.include('voice="Polly.Mia-Neural"');
       expect(result).to.include('Hello, custom voice');
       
       // Verificar que NO incluye los atributos antiguos

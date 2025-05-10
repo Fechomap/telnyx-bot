@@ -21,7 +21,7 @@ async function handleWelcome(req, res) {
     const responseXML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather action="/procesar-expediente" method="POST" input="dtmf speech" language="es-MX" timeout="10">
-    <Say voice="Polly.Lupe-Neural">
+    <Say voice="Polly.Mia-Neural">
       Bienvenido al sistema de consulta de expedientes. Por favor, diga o ingrese el número de expediente.
     </Say>
   </Gather>
