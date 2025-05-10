@@ -16,44 +16,25 @@ const monitoring = require('../utils/monitoring');
  */
 async function handleWelcome(req, res) {
   try {
-    console.log('📞 Nueva llamada recibida, iniciando AI Assistant');
+    console.log('📞 Nueva llamada recibida, usando Say + Gather');
     
-    // Registrar inicio en monitoreo
-    monitoring.trackSessionEvent('created', 'new_call');
+    const responseXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Gather action="/procesar-expediente" method="POST" input="dtmf speech" language="es-MX" timeout="10">
+    <Say voice="Polly.Lupe-Neural">
+      Bienvenido al sistema de consulta de expedientes. Por favor, diga o ingrese el número de expediente.
+    </Say>
+  </Gather>
+</Response>`;
     
-    // Prompt inicial para solicitar número de expediente
-    const initialPrompt = 
-      "Bienvenido al sistema de consulta de expedientes. " +
-      "Por favor, dime o ingresa el número de expediente que deseas consultar.";
-    
-    // Configurar AI Assistant
-    const aiOptions = {
-      aiProvider: config.ai.provider,
-      model: config.ai.model,
-      initialPrompt: initialPrompt,
-      action: config.routes.processExpediente,
-      fallbackAction: config.routes.welcome,
-      language: config.tts.language,
-      voice: config.tts.voice,
-      maxTurns: String(config.ai.maxTurns),
-      interruptible: 'true',
-      enhanced: 'true'
-    };
-    
-    // Crear elemento AI
-    const aiElement = XMLBuilder.addAIAssistant(aiOptions);
-    
-    // Construir y enviar respuesta
-    const responseXML = XMLBuilder.buildResponse([aiElement]);
-    
-    console.log('📝 XML de respuesta AI:\n', responseXML);
+    console.log('📝 XML de respuesta:\n', responseXML);
     
     res.header('Content-Type', 'application/xml');
     res.send(responseXML);
     
   } catch (error) {
-    console.error('❌ Error en bienvenida AI:', error);
-    handleError(req, res, 'welcome', error);
+    console.error('❌ Error en bienvenida:', error);
+    res.status(500).send('Error interno');
   }
 }
 

@@ -104,56 +104,44 @@ class XMLBuilder {
    * @returns {string} Elemento AI Assistant en XML
    */
   static addAIAssistant(options = {}) {
-    // Importar configuración
     const config = require('../../config/texml');
     const aiConfig = config.ai || {};
     const ttsConfig = config.tts || {};
     
-    // Opciones con defaults de configuración
-    const aiProvider = options.aiProvider || aiConfig.provider || 'telnyx';
-    const model = options.model || aiConfig.model || 'meta-llama/Meta-Llama-3-1-70B-Instruct';
+    // Opciones esenciales para AI Assistant
+    const model = options.model || aiConfig.model || 'telnyx';
     const initialPrompt = options.initialPrompt || '';
     const action = options.action || '/interactuar';
-    const fallbackAction = options.fallbackAction || '/welcome';
     const language = options.language || ttsConfig.language || 'es-MX';
     const voiceName = options.voice || ttsConfig.voice || 'Lupe';
     const maxTurns = options.maxTurns || aiConfig.maxTurns || '15';
-    const interruptible = options.interruptible || (aiConfig.interruptible ? 'true' : 'false');
-    const contextVars = options.contextVars || null;
-    const enhanced = options.enhanced || 'true';
+    const interruptible = options.interruptible || 'true';
     
-    // Usar el formato correcto para la voz
+    // Usar el formato correcto para la voz de Polly
     let voiceFormat = `Polly.${voiceName}-Neural`;
     
-    // Construir atributos del elemento - VERIFICAR QUE ESTE FORMATO SEA CORRECTO
+    // Solo incluir atributos que son válidos según la documentación de TeXML
     let aiAssistantAttrs = '';
-    aiAssistantAttrs += ` provider="${aiProvider}"`;
-    aiAssistantAttrs += ` model="${model}"`;
-    aiAssistantAttrs += ` language="${language}"`;
     aiAssistantAttrs += ` voice="${voiceFormat}"`;
-    aiAssistantAttrs += ` maxTurns="${maxTurns}"`;
-    aiAssistantAttrs += ` interruptible="${interruptible}"`;
+    aiAssistantAttrs += ` language="${language}"`;
     aiAssistantAttrs += ` action="${action}"`;
-    aiAssistantAttrs += ` fallbackAction="${fallbackAction}"`;
-    aiAssistantAttrs += ` enhanced="${enhanced}"`;
     
-    // Si hay contexto de variables, construir elementos Variable
-    let contextElements = '';
-    if (contextVars && typeof contextVars === 'object') {
-      for (const [key, value] of Object.entries(contextVars)) {
-        if (value !== undefined && value !== null) {
-          contextElements += `    <Variable name="${key}" value="${this.escapeXML(String(value))}"/>\n`;
-        }
-      }
+    // Agregar atributos opcionales si están presentes
+    if (model && model !== 'telnyx') {
+      aiAssistantAttrs += ` model="${model}"`;
+    }
+    if (maxTurns) {
+      aiAssistantAttrs += ` max_turns="${maxTurns}"`; // Posiblemente sea max_turns, no maxTurns
+    }
+    if (interruptible) {
+      aiAssistantAttrs += ` interruptible="${interruptible}"`;
     }
     
     // Construir el elemento completo
-    if (initialPrompt || contextElements) {
-      return `  <AIAssistant${aiAssistantAttrs}>\n${contextElements}${
-        initialPrompt ? `    ${this.escapeXML(initialPrompt)}\n` : ''
-      }  </AIAssistant>\n`;
+    if (initialPrompt) {
+      return `  <AIAssistant${aiAssistantAttrs}>\n    ${this.escapeXML(initialPrompt)}\n  </AIAssistant>\n`;
     } else {
-      return `  <AIAssistant${aiAssistantAttrs}></AIAssistant>\n`;
+      return `  <AIAssistant${aiAssistantAttrs} />\n`;
     }
   }
 

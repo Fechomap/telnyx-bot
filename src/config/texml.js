@@ -16,18 +16,16 @@ module.exports = {
   
   // Configuración de Text-to-Speech
   tts: {
-    provider: 'telnyx',
-    voice: 'Lupe',      // Cambio a Lupe o voz alternativa
+    provider: 'polly',  // Especifica polly como provider
+    voice: 'Lupe',      // Solo el nombre base
     language: 'es-MX'
   },
   
-  // Configuración de AI
+  // Configuración de AI - usar configuración mínima
   ai: {
     enabled: true,
-    provider: 'telnyx',
-    model: 'meta-llama/Meta-Llama-3-1-70B-Instruct',
+    model: 'telnyx',    // Usa el modelo por defecto de Telnyx
     maxTurns: 15,
-    contextRenewal: true,  // Mantener contexto entre turnos
     interruptible: true
   },
   
