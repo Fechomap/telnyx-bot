@@ -17,7 +17,7 @@ module.exports = {
   // Configuración de Text-to-Speech
   tts: {
     provider: 'polly',  // Especifica polly como provider
-    voice: 'Mia',      // Solo el nombre base
+    voice: 'Polly.Mia-Neural',      // Solo el nombre base
     language: 'es-MX'
   },
   

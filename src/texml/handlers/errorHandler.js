@@ -130,10 +130,10 @@ function generateErrorResponse(errorType, options = {}) {
   
   // Configurar opciones de voz simplificadas
   const sayOptions = {
-    voice: 'Mia'
+    voice: 'Polly.Mia-Neural'
   };
   
-  console.log('🔊 Usando voz Mia para mensaje de error');
+  console.log('🔊 Usando voz Polly.Mia-Neural para mensaje de error');
   
   // Agregar mensaje de error
   elements.push(XMLBuilder.addSay(errorMessage, sayOptions));

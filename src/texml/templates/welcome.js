@@ -17,7 +17,7 @@ function generateWelcomeXML() {
   
   // Simplificar opciones para usar solo voice
   const sayOptions = {
-    voice: 'Mia'
+    voice: 'Polly.Mia-Neural'
   };
   
   // Crear elemento Say independiente
@@ -63,7 +63,7 @@ function generateWelcomeWithAIXML() {
     action: '/ai-response',
     fallbackAction: '/expediente',
     language: 'es-MX',
-    voice: 'Mia',  // Solo especificar voice
+    voice: 'Polly.Mia-Neural',  // Solo especificar voice
     maxTurns: '5',
     interruptible: 'true'
   };
@@ -86,10 +86,10 @@ function generateRequestExpedienteXML() {
   
   // Simplificar opciones para usar solo voice
   const sayOptions = {
-    voice: 'Mia'
+    voice: 'Polly.Mia-Neural'
   };
   
-  console.log('🔊 Usando voz Mia para solicitud de expediente');
+  console.log('🔊 Usando voz Polly.Mia-Neural para solicitud de expediente');
   
   // Crear elemento Say
   const sayElement = XMLBuilder.addSay(requestMessage, sayOptions);

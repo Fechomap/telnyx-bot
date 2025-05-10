@@ -108,41 +108,23 @@ class XMLBuilder {
     const aiConfig = config.ai || {};
     const ttsConfig = config.tts || {};
     
+    // ID del asistente - CRUCIAL para que funcione con Telnyx
+    const assistantId = options.assistantId || "assistant-83651b27-4186-43b9-a635-ad58c4fafbfc"; // ID proporcionado por el usuario
+    
     // Opciones esenciales para AI Assistant
-    const model = options.model || aiConfig.model || 'telnyx';
     const initialPrompt = options.initialPrompt || '';
-    const action = options.action || '/interactuar';
-    const language = options.language || ttsConfig.language || 'es-MX';
-    const voiceName = options.voice || ttsConfig.voice || 'Mia';
-    const maxTurns = options.maxTurns || aiConfig.maxTurns || '15';
-    const interruptible = options.interruptible || 'true';
+    const voiceName = options.voice || ttsConfig.voice || 'Polly.Mia-Neural';
     
-    // Usar el formato correcto para la voz de Polly
-    let voiceFormat = `Polly.${voiceName}-Neural`;
-    
-    // Solo incluir atributos que son válidos según la documentación de TeXML
-    let aiAssistantAttrs = '';
-    aiAssistantAttrs += ` voice="${voiceFormat}"`;
-    aiAssistantAttrs += ` language="${language}"`;
-    aiAssistantAttrs += ` action="${action}"`;
-    
-    // Agregar atributos opcionales si están presentes
-    if (model && model !== 'telnyx') {
-      aiAssistantAttrs += ` model="${model}"`;
-    }
-    if (maxTurns) {
-      aiAssistantAttrs += ` max_turns="${maxTurns}"`; // Posiblemente sea max_turns, no maxTurns
-    }
-    if (interruptible) {
-      aiAssistantAttrs += ` interruptible="${interruptible}"`;
-    }
-    
-    // Construir el elemento completo
-    if (initialPrompt) {
-      return `  <AIAssistant${aiAssistantAttrs}>\n    ${this.escapeXML(initialPrompt)}\n  </AIAssistant>\n`;
-    } else {
-      return `  <AIAssistant${aiAssistantAttrs} />\n`;
-    }
+    // Construir el elemento completo usando el nuevo formato de Telnyx
+    return `  <Start>
+    <Suppression direction="both" />
+  </Start>
+  <Connect>
+    <AIAssistant id="${assistantId}">
+      <Greeting>${this.escapeXML(initialPrompt)}</Greeting>
+      <Voice name="${voiceName}" />
+    </AIAssistant>
+  </Connect>\n`;
   }
 
   /**

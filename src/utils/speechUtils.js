@@ -116,34 +116,47 @@ function detectUserIntent(userInput) {
   
   const text = userInput.toLowerCase();
   
-  // Consultar nuevo expediente
-  if (text.includes('otro expediente') || 
-      text.includes('nuevo expediente') || 
-      text.includes('cambiar expediente') ||
-      text.includes('consultar otro')) {
-    return { intent: 'new_expediente' };
+  // Consultas sobre costos
+  if (text.includes('costo') || 
+      text.includes('precio') || 
+      text.includes('cuánto') ||
+      text.includes('pagar')) {
+    return { intent: 'query_cost' };
+  }
+  
+  // Consultas sobre ubicación
+  if (text.includes('ubicación') || 
+      text.includes('dónde') || 
+      text.includes('tiempo') ||
+      text.includes('llegar')) {
+    return { intent: 'query_location' };
+  }
+  
+  // Consultas sobre la unidad
+  if (text.includes('unidad') || 
+      text.includes('grúa') || 
+      text.includes('operador') ||
+      text.includes('placas')) {
+    return { intent: 'query_unit' };
+  }
+  
+  // Agradecimiento/despedida
+  if (text.includes('gracias') || 
+      text.includes('adiós') || 
+      text.includes('hasta luego') ||
+      text.includes('terminar')) {
+    return { intent: 'hangup' };
   }
   
   // Hablar con agente
   if (text.includes('agente') || 
       text.includes('operador') || 
-      text.includes('humano') || 
-      text.includes('persona') ||
-      text.includes('ejecutivo') ||
-      text.includes('transferir')) {
+      text.includes('humano') ||
+      text.includes('persona')) {
     return { intent: 'agent' };
   }
   
-  // Colgar o terminar
-  if (text.includes('colgar') || 
-      text.includes('terminar') || 
-      text.includes('finalizar llamada') || 
-      text.includes('adiós') ||
-      text.includes('gracias por todo')) {
-    return { intent: 'hangup' };
-  }
-  
-  // Intención de consulta general (default)
+  // Por defecto
   return { intent: 'query' };
 }
 

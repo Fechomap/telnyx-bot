@@ -109,10 +109,11 @@ async function handleProcessExpediente(req, res) {
     
     // Registrar consulta de expediente
     monitoring.trackExpediente('query', expediente);
-    console.log(`🔍 Consultando expediente: ${expediente}`);
+    console.log(`[LOG] Iniciando consultaUnificada para expediente: ${expediente}`);
     
     // Consultar todos los endpoints a la vez
     const datosExpediente = await consultaUnificada(expediente);
+    console.log('[LOG] Resultado de consultaUnificada:', JSON.stringify(datosExpediente, null, 2));
     
     // Finalizar medición
     endDataQueryTimer(!!datosExpediente);
@@ -162,38 +163,49 @@ async function handleProcessExpediente(req, res) {
     
     // Formatear datos para respuesta
     const context = speechUtils.formatContextForAI(datosExpediente);
+    console.log('[LOG] Contexto formateado para AI:', JSON.stringify(context, null, 2));
     
-    // Primero dar información básica, luego menú de opciones
-    const successXML = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="Polly.Mia-Neural">
-    He encontrado el expediente número ${expediente}.
-    Cliente: ${context.nombre}.
-    Vehículo: ${context.vehiculo}.
-    Estado: ${context.estatus}.
-  </Say>
-  <Gather 
-    action="/interactuar?sessionId=${sessionId}" 
-    method="POST" 
-    input="dtmf" 
-    numDigits="1"
-    timeout="10">
-    <Say voice="Polly.Mia-Neural">
-      Para consultar costos, presione 1.
-      Para datos de la unidad, presione 2.
-      Para ubicación, presione 3.
-      Para tiempos, presione 4.
-      Para hablar con un agente, presione 0.
-    </Say>
-  </Gather>
-  <Redirect>/welcome</Redirect>
-</Response>`;
+    // Construir el texto del prompt para el AI Assistant
+    // const promptTextContent = `He encontrado el expediente número ${expediente}.
+    // Cliente: ${context.nombre}.
+    // Vehículo: ${context.vehiculo}.
+    // Estado: ${context.estatus}.
+
+    // ¿Qué información necesitas? Puedo ayudarte con costos, datos de la unidad, ubicación o tiempos. También puedes preguntarme cualquier cosa sobre tu expediente.`;
+    // console.log('[LOG] promptTextContent para AI (original):', promptTextContent);
+
+    // --- PRUEBA CON PROMPT SIMPLE ---
+    const promptTextContent = "Hola. Expediente encontrado. ¿Qué deseas consultar?";
+    console.log('[LOG] promptTextContent para AI (PRUEBA SIMPLE):', promptTextContent);
+    // --- FIN PRUEBA CON PROMPT SIMPLE ---
+
+    // Configurar opciones para XMLBuilder.addAIAssistant, similar a welcome.js
+    const aiAssistantOptions = {
+        aiProvider: 'telnyx',
+        model: 'meta-llama/Meta-Llama-3-1-70B-Instruct',
+        initialPrompt: promptTextContent,
+        action: `/interactuar?sessionId=${sessionId}`,
+        fallbackAction: '/procesar-expediente', // Permite reintentar si AI falla
+        language: 'es-MX',
+        voice: 'Polly.Mia-Neural',
+        maxTurns: '5',
+        interruptible: 'true'
+    };
+    
+    console.log('[LOG] Opciones para addAIAssistant (aiAssistantOptions):', JSON.stringify(aiAssistantOptions, null, 2));
+    
+    // Generar el elemento AIAssistant y la respuesta TeXML usando XMLBuilder
+    const aiElement = XMLBuilder.addAIAssistant(aiAssistantOptions);
+    console.log('[LOG] Elemento AIAssistant generado:', aiElement);
+    const successXML = XMLBuilder.buildResponse([aiElement]);
+    
+    console.log('📝 [LOG] XML de respuesta final para expediente encontrado (con XMLBuilder):\n', successXML);
     
     res.header('Content-Type', 'application/xml');
     return res.send(successXML);
     
   } catch (error) {
-    console.error('❌ Error al procesar expediente:', error);
+    console.error('❌ Error al procesar expediente (detalle completo):', error); // Log completo del error
     handleError(req, res, 'process_expediente', error);
   }
 }
@@ -205,15 +217,11 @@ async function handleProcessExpediente(req, res) {
  */
 async function handleInteraction(req, res) {
   try {
-    // Obtener ID de sesión
     const sessionId = req.query.sessionId || '';
-    const digits = req.body.Digits || req.query.Digits || '';
-    
-    console.log(`🔢 Opción seleccionada: ${digits} (sesión: ${sessionId})`);
+    const userInput = req.body.SpeechResult || req.body.TextResult || '';
     
     // Validar sesión
     if (!sessionId) {
-      console.log('❌ ID de sesión no proporcionado en interacción');
       return handleSessionError(req, res);
     }
     
@@ -221,51 +229,42 @@ async function handleInteraction(req, res) {
     const expedienteData = sessionCache.getSession(sessionId);
     
     if (!expedienteData) {
-      console.log(`❌ Sesión no encontrada: ${sessionId}`);
-      monitoring.trackSessionEvent('expired', sessionId);
       return handleSessionError(req, res);
     }
     
-    // Manejar según opción seleccionada
-    let responseMessage = '';
+    // Detectar intención del usuario
+    const intent = speechUtils.detectUserIntent(userInput);
     
-    switch (digits) {
-      case '1': // Costos
-        responseMessage = formatCostsMessage(expedienteData);
-        break;
-      case '2': // Unidad
-        responseMessage = formatUnitMessage(expedienteData);
-        break;
-      case '3': // Ubicación
-        responseMessage = formatLocationMessage(expedienteData);
-        break;
-      case '4': // Tiempos
-        responseMessage = formatTimesMessage(expedienteData);
-        break;
-      case '0': // Agente
-        return handleAgentRequest(req, res, sessionId);
-      default:
-        responseMessage = "Opción no válida.";
-    }
-    
-    // Responder con la información y volver al menú
-    const responseXML = `<?xml version="1.0" encoding="UTF-8"?>
+    // Si el usuario quiere terminar
+    if (intent.intent === 'hangup') {
+      const goodbyeXML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Mia-Neural">
-    ${responseMessage}
+    Gracias por utilizar nuestro servicio. Que tenga un buen día.
   </Say>
-  <Gather 
-    action="/interactuar?sessionId=${sessionId}" 
-    method="POST" 
-    input="dtmf" 
-    numDigits="1"
-    timeout="10">
-    <Say voice="Polly.Mia-Neural">
-      Para consultar otra información, seleccione una opción del menú.
-      Costos: 1. Unidad: 2. Ubicación: 3. Tiempos: 4. Agente: 0.
-    </Say>
-  </Gather>
-  <Redirect>/welcome</Redirect>
+  <Hangup/>
+</Response>`;
+      res.header('Content-Type', 'application/xml');
+      return res.send(goodbyeXML);
+    }
+    
+    // Si quiere hablar con un agente
+    if (intent.intent === 'agent') {
+      return handleAgentRequest(req, res, sessionId);
+    }
+    
+    // Continuar conversación con AI
+    const context = speechUtils.formatContextForAI(expedienteData);
+    const responseXML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <AIAssistant
+    voice="Polly.Mia-Neural"
+    language="es-MX"
+    action="/interactuar?sessionId=${sessionId}"
+    interruptible="true"
+    context='${JSON.stringify(context)}'>
+    <!-- El AI responderá basándose en la pregunta del usuario y el contexto del expediente -->
+  </AIAssistant>
 </Response>`;
     
     res.header('Content-Type', 'application/xml');
@@ -405,9 +404,11 @@ function handleSessionError(req, res) {
 function handleError(req, res, errorContext, error) {
   // Registrar error
   monitoring.trackError(`ai_${errorContext}_error`, req.originalUrl, { 
-    error: error.message 
+    error: error.message,
+    stack: error.stack // Incluir stack trace en el log de monitoreo
   });
   
+  console.error(`[LOG] handleError fue llamado. Contexto: ${errorContext}, Error: ${error.message}`); // Log adicional en handleError
   const errorXML = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Mia-Neural">
