@@ -1,4 +1,4 @@
-// src/services/ivr/menuService.js - VERSIÓN COMPLETA
+// src/services/ivr/menuService.js - VERSIÓN CORREGIDA CON FLUJO CONTINUO
 const XMLBuilder = require('../../texml/helpers/xmlBuilder');
 const config = require('../../config/texml');
 
@@ -67,23 +67,28 @@ class MenuService {
     let menuOptions = [];
     let validDigits = '';
     
-    if (datos.costos && Object.keys(datos.costos).length > 0) {
-      menuOptions.push("Presione 1 para consultar costos");
+    // Reorganizar opciones según lo solicitado
+    // Opción 1: Información general del expediente
+    if (datos.datosGenerales && Object.keys(datos.datosGenerales).length > 0) {
+      menuOptions.push("Presione 1 para información general del expediente");
       validDigits += '1';
     }
     
-    if (datos.unidad && Object.keys(datos.unidad).length > 0) {
-      menuOptions.push("Presione 2 para información de la unidad");
+    // Opción 2: Costos
+    if (datos.costos && Object.keys(datos.costos).length > 0) {
+      menuOptions.push("Presione 2 para consultar costos");
       validDigits += '2';
     }
     
-    if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
-      menuOptions.push("Presione 3 para ubicación y tiempos");
+    // Opción 3: Tiempos del servicio
+    if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
+      menuOptions.push("Presione 3 para tiempos del servicio");
       validDigits += '3';
     }
     
-    if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
-      menuOptions.push("Presione 4 para tiempos del servicio");
+    // Opción 4: Ubicación
+    if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
+      menuOptions.push("Presione 4 para ubicación y tiempo de llegada");
       validDigits += '4';
     }
     
@@ -117,6 +122,43 @@ class MenuService {
     ]);
   }
   
+  // CAMBIO CRÍTICO: Eliminar gather y redirigir directamente al menú después de mostrar información
+  
+  buildGeneralInfoMenu(datos, callSid, expediente) {
+    const datosGenerales = datos.datosGenerales;
+    let message = `Información general del expediente ${expediente}. `;
+    
+    if (datosGenerales.nombre) {
+      message += `Cliente: ${datosGenerales.nombre}. `;
+    }
+    
+    if (datosGenerales.vehiculo) {
+      message += `Vehículo: ${datosGenerales.vehiculo}. `;
+    }
+    
+    if (datosGenerales.estatus) {
+      message += `Estado: ${datosGenerales.estatus}. `;
+    }
+    
+    if (datosGenerales.servicio) {
+      message += `Servicio: ${datosGenerales.servicio}. `;
+    }
+    
+    if (datosGenerales.destino) {
+      message += `Destino: ${datosGenerales.destino}. `;
+    }
+    
+    const sayInfo = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    
+    // Pequeña pausa natural
+    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    
+    // Redirigir directamente al menú sin esperar input
+    const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
+    
+    return XMLBuilder.buildResponse([sayInfo, pause, redirect]);
+  }
+  
   buildCostsMenu(datos, callSid, expediente) {
     const costos = datos.costos;
     let message = `Información de costos del expediente ${expediente}. `;
@@ -145,100 +187,15 @@ class MenuService {
       message += `Maniobras: ${costos.maniobras} pesos. `;
     }
     
-    message += "Presione cualquier tecla para volver al menú.";
-    
     const sayCosts = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
     
-    const gatherElement = XMLBuilder.addGather({
-      action: `/menu-expediente`,
-      method: 'POST',
-      input: 'dtmf',
-      numDigits: '1',
-      timeout: '10'
-    });
+    // Pequeña pausa natural
+    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
     
-    const redirect = XMLBuilder.addRedirect(
-      `/menu-expediente`,
-      'POST'
-    );
+    // Redirigir directamente al menú sin esperar input
+    const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
-    return XMLBuilder.buildResponse([sayCosts, gatherElement, redirect]);
-  }
-  
-  buildUnitMenu(datos, callSid, expediente) {
-    const unidad = datos.unidad;
-    let message = `Información de la unidad del expediente ${expediente}. `;
-    
-    if (unidad.operador) {
-      message += `Operador: ${unidad.operador}. `;
-    }
-    
-    if (unidad.tipoGrua) {
-      message += `Tipo de grúa: ${unidad.tipoGrua}. `;
-    }
-    
-    if (unidad.color) {
-      message += `Color: ${unidad.color}. `;
-    }
-    
-    if (unidad.unidadOperativa) {
-      message += `Número económico: ${unidad.unidadOperativa}. `;
-    }
-    
-    if (unidad.placas) {
-      message += `Placas: ${unidad.placas}. `;
-    }
-    
-    message += "Presione cualquier tecla para volver al menú.";
-    
-    const sayUnit = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
-    
-    const gatherElement = XMLBuilder.addGather({
-      action: `/menu-expediente`,
-      method: 'POST',
-      input: 'dtmf',
-      numDigits: '1',
-      timeout: '10'
-    });
-    
-    const redirect = XMLBuilder.addRedirect(
-      `/menu-expediente`,
-      'POST'
-    );
-    
-    return XMLBuilder.buildResponse([sayUnit, gatherElement, redirect]);
-  }
-  
-  buildLocationMenu(datos, callSid, expediente) {
-    const ubicacion = datos.ubicacion;
-    let message = `Información de ubicación del expediente ${expediente}. `;
-    
-    if (ubicacion.tiempoRestante) {
-      message += `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}. `;
-    }
-    
-    if (ubicacion.ubicacionGrua) {
-      message += `La unidad está en camino. `;
-    }
-    
-    message += "Presione cualquier tecla para volver al menú.";
-    
-    const sayLocation = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
-    
-    const gatherElement = XMLBuilder.addGather({
-      action: `/menu-expediente`,
-      method: 'POST',
-      input: 'dtmf',
-      numDigits: '1',
-      timeout: '10'
-    });
-    
-    const redirect = XMLBuilder.addRedirect(
-      `/menu-expediente`,
-      'POST'
-    );
-    
-    return XMLBuilder.buildResponse([sayLocation, gatherElement, redirect]);
+    return XMLBuilder.buildResponse([sayCosts, pause, redirect]);
   }
   
   buildTimesMenu(datos, callSid, expediente) {
@@ -253,24 +210,46 @@ class MenuService {
       message += `Tiempo de término: ${tiempos.tt}. `;
     }
     
-    message += "Presione cualquier tecla para volver al menú.";
+    if (!tiempos.tc && !tiempos.tt) {
+      message += `No hay información de tiempos disponible en este momento. `;
+    }
     
     const sayTimes = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
     
-    const gatherElement = XMLBuilder.addGather({
-      action: `/menu-expediente`,
-      method: 'POST',
-      input: 'dtmf',
-      numDigits: '1',
-      timeout: '10'
-    });
+    // Pequeña pausa natural
+    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
     
-    const redirect = XMLBuilder.addRedirect(
-      `/menu-expediente`,
-      'POST'
-    );
+    // Redirigir directamente al menú sin esperar input
+    const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
-    return XMLBuilder.buildResponse([sayTimes, gatherElement, redirect]);
+    return XMLBuilder.buildResponse([sayTimes, pause, redirect]);
+  }
+  
+  buildLocationMenu(datos, callSid, expediente) {
+    const ubicacion = datos.ubicacion;
+    let message = `Información de ubicación del expediente ${expediente}. `;
+    
+    if (ubicacion.tiempoRestante) {
+      message += `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}. `;
+    }
+    
+    if (ubicacion.ubicacionGrua) {
+      message += `La unidad está en camino. `;
+    }
+    
+    if (!ubicacion.tiempoRestante && !ubicacion.ubicacionGrua) {
+      message += `No hay información de ubicación disponible en este momento. `;
+    }
+    
+    const sayLocation = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    
+    // Pequeña pausa natural
+    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    
+    // Redirigir directamente al menú sin esperar input
+    const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
+    
+    return XMLBuilder.buildResponse([sayLocation, pause, redirect]);
   }
 }
 

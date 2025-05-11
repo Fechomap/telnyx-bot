@@ -1,4 +1,4 @@
-// src/controllers/ivrController.js - VERSION CORREGIDA
+// src/controllers/ivrController.js - VERSION CORREGIDA Y ACTUALIZADA
 const XMLBuilder = require('../texml/helpers/xmlBuilder');
 const redisService = require('../services/redisService');
 const menuService = require('../services/ivr/menuService');
@@ -170,27 +170,35 @@ class IVRController {
       
       let responseXML;
       
+      // CAMBIO PRINCIPAL: Nueva organización de opciones
       switch(option) {
         case '1':
-          responseXML = menuService.buildCostsMenu(datos, callSid, expediente);
+          // Opción 1: Información general del expediente (NUEVO)
+          responseXML = menuService.buildGeneralInfoMenu(datos, callSid, expediente);
           break;
         case '2':
-          responseXML = menuService.buildUnitMenu(datos, callSid, expediente);
+          // Opción 2: Costos (se mantiene)
+          responseXML = menuService.buildCostsMenu(datos, callSid, expediente);
           break;
         case '3':
-          responseXML = menuService.buildLocationMenu(datos, callSid, expediente);
-          break;
-        case '4':
+          // Opción 3: Tiempos del servicio (antes era opción 4)
           responseXML = menuService.buildTimesMenu(datos, callSid, expediente);
           break;
+        case '4':
+          // Opción 4: Ubicación (antes era opción 3)
+          responseXML = menuService.buildLocationMenu(datos, callSid, expediente);
+          break;
         case '9':
+          // Nueva consulta
           await redisService.delete(`call_${callSid}`);
           responseXML = responseService.buildNewQueryResponse();
           break;
         case '0':
+          // Transferir a asesor
           responseXML = responseService.buildTransferResponse();
           break;
         default:
+          // Opción inválida - volver al menú
           responseXML = menuService.buildExpedienteMenu(
             datos, 
             callSid, 
@@ -205,28 +213,32 @@ class IVRController {
     }
   }
   
-  // Método auxiliar para generar opciones del menú
+  // Método auxiliar para generar opciones del menú - ACTUALIZADO
   generateMenuOptions(datos) {
     let menuOptions = [];
     let validDigits = '';
     
-    if (datos.costos && Object.keys(datos.costos).length > 0) {
-      menuOptions.push("Presione 1 para consultar costos");
+    // Opción 1: Información general del expediente (NUEVO)
+    if (datos.datosGenerales && Object.keys(datos.datosGenerales).length > 0) {
+      menuOptions.push("Presione 1 para información general del expediente");
       validDigits += '1';
     }
     
-    if (datos.unidad && Object.keys(datos.unidad).length > 0) {
-      menuOptions.push("Presione 2 para información de la unidad");
+    // Opción 2: Costos
+    if (datos.costos && Object.keys(datos.costos).length > 0) {
+      menuOptions.push("Presione 2 para consultar costos");
       validDigits += '2';
     }
     
-    if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
-      menuOptions.push("Presione 3 para ubicación y tiempos");
+    // Opción 3: Tiempos del servicio
+    if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
+      menuOptions.push("Presione 3 para tiempos del servicio");
       validDigits += '3';
     }
     
-    if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
-      menuOptions.push("Presione 4 para tiempos del servicio");
+    // Opción 4: Ubicación y tiempo de llegada
+    if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
+      menuOptions.push("Presione 4 para ubicación y tiempo de llegada");
       validDigits += '4';
     }
     
