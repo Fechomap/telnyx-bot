@@ -1,13 +1,13 @@
-// src/services/ivr/menuService.js - VERSIÓN CORREGIDA CON FLUJO CONTINUO
+// src/services/ivr/menuService.js - VERSIÓN CORREGIDA CON FILTRADO POR ESTATUS
 const XMLBuilder = require('../../texml/helpers/xmlBuilder');
 const config = require('../../config/texml');
-const SessionService = require('./sessionService'); // Import SessionService
+const SessionService = require('./sessionService');
 
 class MenuService {
   buildWelcomeMenu() {
     const sayElement = XMLBuilder.addSay(
       "Hola! Seguimiento a expediente presione 1, Cotizar un servicio presione 2.",
-      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
     const gatherElement = XMLBuilder.addGather({
@@ -22,7 +22,7 @@ class MenuService {
     
     const timeoutSay = XMLBuilder.addSay(
       "No se detectó una opción válida.",
-      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
     const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
@@ -37,7 +37,7 @@ class MenuService {
   buildExpedienteRequestMenu() {
     const sayElement = XMLBuilder.addSay(
       "Proporciona el número de expediente y despues la tecla GATO",
-      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
     const gatherElement = XMLBuilder.addGather({
@@ -52,7 +52,7 @@ class MenuService {
     
     const timeoutSay = XMLBuilder.addSay(
       "No se detectó ningún número.",
-      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
     const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
@@ -63,37 +63,83 @@ class MenuService {
       redirect
     ]);
   }
+
+  // NUEVO: Función para determinar qué menús mostrar según el estatus
+  determineMenuOptions(datos) {
+    const estatus = datos.datosGenerales?.estatus;
+    const options = {
+      showTimes: false,
+      showLocation: false
+    };
+    
+    switch(estatus) {
+      case 'A Contactar':
+        options.showLocation = true;
+        options.showTimes = false;
+        break;
+        
+      case 'Cancelado':
+        // No mostrar ningún menú
+        options.showLocation = false;
+        options.showTimes = false;
+        break;
+        
+      case 'Concluido':
+        options.showLocation = false;
+        options.showTimes = true;
+        break;
+        
+      case 'En Proceso':
+        options.showLocation = true;
+        options.showTimes = false;
+        break;
+        
+      case 'Servicio Muerto':
+        options.showLocation = false;
+        options.showTimes = true;
+        break;
+        
+      default:
+        console.warn(`⚠️ Estatus desconocido: ${estatus}`);
+        break;
+    }
+    
+    console.log(`📊 Estatus: ${estatus}, Opciones: ${JSON.stringify(options)}`);
+    return options;
+  }
   
-  async buildExpedienteMenu(datos, callSid, expediente) { // Mark function as async
+  async buildExpedienteMenu(datos, callSid, expediente) {
     let menuOptions = [];
     let validDigits = '';
     
-    // Reorganizar opciones según lo solicitado
-    // Opción 1: Información general del expediente
+    // Determinar qué mostrar según el estatus
+    const displayOptions = this.determineMenuOptions(datos);
+    
+    // Opción 1: Información general del expediente (siempre se muestra)
     if (datos.datosGenerales && Object.keys(datos.datosGenerales).length > 0) {
       menuOptions.push("Presione uno para información general del expediente");
       validDigits += '1';
     }
     
-    // Opción 2: Costos
+    // Opción 2: Costos (siempre se muestra si hay datos)
     if (datos.costos && Object.keys(datos.costos).length > 0) {
       menuOptions.push("dos para costos");
       validDigits += '2';
     }
     
-    // Opción 3: Tiempos del servicio
-    if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
+    // Opción 3: Tiempos (solo según estatus)
+    if (displayOptions.showTimes && datos.tiempos && Object.keys(datos.tiempos).length > 0) {
       menuOptions.push("tres para tiempos");
       validDigits += '3';
     }
     
-    // Opción 4: Ubicación
-    if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
+    // Opción 4: Ubicación y tiempo de llegada (solo según estatus)
+    if (displayOptions.showLocation && datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
       menuOptions.push("cuatro para ubicación y tiempo de llegada");
       validDigits += '4';
     }
 
-    // Opción 5: Datos de la unidad operativa (NUEVO)
+    // Opción 5: Datos de la unidad operativa (siempre se muestra si hay datos)
     if (datos.unidad && Object.keys(datos.unidad).length > 0) {
       menuOptions.push("cinco para datos de la unidad");
       validDigits += '5';
@@ -111,16 +157,15 @@ class MenuService {
     if (!introShown) {
       const introSay = XMLBuilder.addSay(
         `Expediente ${expediente} encontrado`,
-        { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
+        { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
       );
       responseElements.push(introSay);
-      // Mark that the intro message has now been shown
       await SessionService.markIntroMessageShown(callSid, expediente);
     }
     
     const menuSay = XMLBuilder.addSay(
       menuOptions.join('. '),
-      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
     const gatherElement = XMLBuilder.addGather({
@@ -130,15 +175,13 @@ class MenuService {
       numDigits: '1',
       timeout: '15',
       validDigits: validDigits,
-      nested: menuSay // menuSay should be nested directly in Gather
+      nested: menuSay
     });
 
     responseElements.push(gatherElement);
     
     return XMLBuilder.buildResponse(responseElements);
   }
-  
-  // CAMBIO CRÍTICO: Eliminar gather y redirigir directamente al menú después de mostrar información
   
   buildGeneralInfoMenu(datos, callSid, expediente) {
     const datosGenerales = datos.datosGenerales;
@@ -164,12 +207,8 @@ class MenuService {
       message += `Destino: ${datosGenerales.destino}. `;
     }
     
-    const sayInfo = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Redirigir directamente al menú sin esperar input
+    const sayInfo = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
     return XMLBuilder.buildResponse([sayInfo, pause, redirect]);
@@ -203,66 +242,57 @@ class MenuService {
       message += `Maniobras: ${costos.maniobras} pesos. `;
     }
     
-    const sayCosts = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Redirigir directamente al menú sin esperar input
+    const sayCosts = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
     return XMLBuilder.buildResponse([sayCosts, pause, redirect]);
   }
   
+  // MODIFICADO: Manejo mejorado para tiempos que podrían ser null
   buildTimesMenu(datos, callSid, expediente) {
     const tiempos = datos.tiempos;
     let message = `los tiempos de ${expediente} son. `;
     
-    if (tiempos.tc) {
+    if (tiempos.tc && tiempos.tc !== null) {
       message += `contacto: ${tiempos.tc}. `;
     }
     
-    if (tiempos.tt) {
+    if (tiempos.tt && tiempos.tt !== null) {
       message += `término: ${tiempos.tt}. `;
     }
     
-    if (!tiempos.tc && !tiempos.tt) {
-      message += `aun No hay información de tiempos disponible en este momento. `;
+    if ((!tiempos.tc || tiempos.tc === null) && (!tiempos.tt || tiempos.tt === null)) {
+      message += `No hay información de tiempos disponible en este momento. `;
     }
     
-    const sayTimes = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Redirigir directamente al menú sin esperar input
+    const sayTimes = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
     return XMLBuilder.buildResponse([sayTimes, pause, redirect]);
   }
   
+  // MODIFICADO: Manejo mejorado para ubicación que podría ser null
   buildLocationMenu(datos, callSid, expediente) {
     const ubicacion = datos.ubicacion;
     let message = `los datos de ${expediente} son. `;
     
-    if (ubicacion.tiempoRestante) {
+    if (ubicacion.tiempoRestante && ubicacion.tiempoRestante !== null) {
       message += `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}. `;
     }
     
-    if (ubicacion.ubicacionGrua) {
+    if (ubicacion.ubicacionGrua && ubicacion.ubicacionGrua !== null) {
       message += `La unidad está en camino. `;
     }
     
-    if (!ubicacion.tiempoRestante && !ubicacion.ubicacionGrua) {
+    if ((!ubicacion.tiempoRestante || ubicacion.tiempoRestante === null) && 
+        (!ubicacion.ubicacionGrua || ubicacion.ubicacionGrua === null)) {
       message += `No hay información de ubicación disponible en este momento. `;
     }
     
-    const sayLocation = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Redirigir directamente al menú sin esperar input
+    const sayLocation = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
     return XMLBuilder.buildResponse([sayLocation, pause, redirect]);
@@ -282,10 +312,10 @@ class MenuService {
       if (unidad.color) {
         message += `Color: ${unidad.color}. `;
       }
-      if (unidad.unidadOperativa) { // Corresponds to Número Económico
+      if (unidad.unidadOperativa) {
         message += `Número Económico: ${unidad.unidadOperativa}. `;
       }
-      if (unidad.placas || unidad.placa) { // Handle both 'placas' or 'placa'
+      if (unidad.placas || unidad.placa) {
         message += `Placas: ${unidad.placas || unidad.placa}. `;
       }
       if (Object.keys(unidad).length === 0 || 
@@ -296,12 +326,8 @@ class MenuService {
       message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
     }
     
-    const sayUnidad = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
-    
-    // Redirigir directamente al menú sin esperar input
+    const sayUnidad = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
     return XMLBuilder.buildResponse([sayUnidad, pause, redirect]);

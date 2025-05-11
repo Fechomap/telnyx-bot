@@ -197,11 +197,16 @@ class IVRController {
   }
   
   // Método auxiliar para generar opciones del menú - ACTUALIZADO
+  // Reemplazar SOLO el método generateMenuOptions en ivrController.js
   generateMenuOptions(datos) {
+    const menuService = require('../services/ivr/menuService');
     let menuOptions = [];
     let validDigits = '';
     
-    // Opción 1: Información general del expediente (NUEVO)
+    // Usar la lógica del menuService para determinar qué mostrar
+    const displayOptions = menuService.determineMenuOptions(datos);
+    
+    // Opción 1: Información general del expediente
     if (datos.datosGenerales && Object.keys(datos.datosGenerales).length > 0) {
       menuOptions.push("Presione uno para información general del expediente");
       validDigits += '1';
@@ -213,19 +218,19 @@ class IVRController {
       validDigits += '2';
     }
     
-    // Opción 3: Tiempos del servicio
-    if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
+    // Opción 3: Tiempos (solo según estatus)
+    if (displayOptions.showTimes && datos.tiempos && Object.keys(datos.tiempos).length > 0) {
       menuOptions.push("tres para tiempos");
       validDigits += '3';
     }
     
-    // Opción 4: Ubicación y tiempo de llegada
-    if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
+    // Opción 4: Ubicación y tiempo de llegada (solo según estatus)
+    if (displayOptions.showLocation && datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
       menuOptions.push("cuatro para ubicación y tiempo de llegada");
       validDigits += '4';
     }
 
-    // Opción 5: Datos de la unidad operativa (NUEVO)
+    // Opción 5: Datos de la unidad operativa
     if (datos.unidad && Object.keys(datos.unidad).length > 0) {
       menuOptions.push("cinco para datos de la unidad");
       validDigits += '5';
