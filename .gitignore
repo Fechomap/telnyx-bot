@@ -5,3 +5,4 @@ package-lock.json
 coverage/
 logs/
 dump.rdb
+.DS_Store
