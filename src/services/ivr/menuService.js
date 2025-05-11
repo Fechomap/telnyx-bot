@@ -71,36 +71,36 @@ class MenuService {
     // Reorganizar opciones según lo solicitado
     // Opción 1: Información general del expediente
     if (datos.datosGenerales && Object.keys(datos.datosGenerales).length > 0) {
-      menuOptions.push("Presione 1 para información general del expediente");
+      menuOptions.push("Presione uno para información general del expediente");
       validDigits += '1';
     }
     
     // Opción 2: Costos
     if (datos.costos && Object.keys(datos.costos).length > 0) {
-      menuOptions.push("Presione 2 para consultar costos");
+      menuOptions.push("Presione dos para consultar costos");
       validDigits += '2';
     }
     
     // Opción 3: Tiempos del servicio
     if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
-      menuOptions.push("Presione 3 para tiempos del servicio");
+      menuOptions.push("Presione tres para tiempos del servicio");
       validDigits += '3';
     }
     
     // Opción 4: Ubicación
     if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
-      menuOptions.push("Presione 4 para ubicación y tiempo de llegada");
+      menuOptions.push("Presione cuatro para ubicación y tiempo de llegada");
       validDigits += '4';
     }
 
     // Opción 5: Datos de la unidad operativa (NUEVO)
     if (datos.unidad && Object.keys(datos.unidad).length > 0) {
-      menuOptions.push("Presione 5 para datos de la unidad operativa");
+      menuOptions.push("Presione cinco para datos de la unidad operativa");
       validDigits += '5';
     }
     
-    menuOptions.push("Presione 9 para consultar otro expediente");
-    menuOptions.push("Presione 0 para hablar con un asesor");
+    menuOptions.push("Presione nueve para consultar otro expediente");
+    menuOptions.push("Presione cero para hablar con un asesor");
     validDigits += '90';
 
     const responseElements = [];
