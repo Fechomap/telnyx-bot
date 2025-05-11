@@ -35,7 +35,7 @@ class ResponseService {
   buildComingSoonResponse() {
     const say = XMLBuilder.addSay(
       "Esta opción estará disponible próximamente.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
     return XMLBuilder.buildResponse([say, redirect]);
@@ -44,7 +44,7 @@ class ResponseService {
   buildInvalidOptionResponse() {
     const say = XMLBuilder.addSay(
       "Opción no válida.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
     return XMLBuilder.buildResponse([say, redirect]);
@@ -66,7 +66,7 @@ class ResponseService {
         break;
     }
     
-    const say = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    const say = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
     return XMLBuilder.buildResponse([say, redirect]);
   }
@@ -74,7 +74,7 @@ class ResponseService {
   buildSessionExpiredResponse() {
     const say = XMLBuilder.addSay(
       "La sesión ha expirado. Por favor, inicie una nueva consulta.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
     return XMLBuilder.buildResponse([say, redirect]);
@@ -83,7 +83,7 @@ class ResponseService {
   buildSystemErrorResponse() {
     const say = XMLBuilder.addSay(
       "Ha ocurrido un error en el sistema. Por favor, intente nuevamente.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
     return XMLBuilder.buildResponse([say, redirect]);
@@ -92,7 +92,7 @@ class ResponseService {
   buildNewQueryResponse() {
     const say = XMLBuilder.addSay(
       "Iniciando nueva consulta.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
     return XMLBuilder.buildResponse([say, redirect]);
@@ -101,7 +101,7 @@ class ResponseService {
   buildTransferResponse() {
     const say = XMLBuilder.addSay(
       "Lo siento, en este momento no es posible transferirle con un asesor.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     return XMLBuilder.buildResponse([say]);
   }
