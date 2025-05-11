@@ -89,6 +89,12 @@ app.post('/admin/clear-cache', async (req, res) => {
   }
 });
 
+// DEBUG TEMPORAL: registrar detalles de cada petición
+app.use((req, res, next) => {
+  console.log(`🔍 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  next();
+});
 // Montar rutas IVR principales
 app.use('/', ivrRoutes);
 
