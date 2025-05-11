@@ -92,6 +92,12 @@ class MenuService {
       menuOptions.push("Presione 4 para ubicación y tiempo de llegada");
       validDigits += '4';
     }
+
+    // Opción 5: Datos de la unidad operativa (NUEVO)
+    if (datos.unidad && Object.keys(datos.unidad).length > 0) {
+      menuOptions.push("Presione 5 para datos de la unidad operativa");
+      validDigits += '5';
+    }
     
     menuOptions.push("Presione 9 para consultar otro expediente");
     menuOptions.push("Presione 0 para hablar con un asesor");
@@ -260,6 +266,45 @@ class MenuService {
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
     return XMLBuilder.buildResponse([sayLocation, pause, redirect]);
+  }
+
+  buildUnidadOperativaMenu(datos, callSid, expediente) {
+    const unidad = datos.unidad;
+    let message = `Datos de la unidad operativa del expediente ${expediente}. `;
+
+    if (unidad) {
+      if (unidad.operador) {
+        message += `Operador: ${unidad.operador}. `;
+      }
+      if (unidad.tipoGrua) {
+        message += `Tipo de Grúa: ${unidad.tipoGrua}. `;
+      }
+      if (unidad.color) {
+        message += `Color: ${unidad.color}. `;
+      }
+      if (unidad.unidadOperativa) { // Corresponds to Número Económico
+        message += `Número Económico: ${unidad.unidadOperativa}. `;
+      }
+      if (unidad.placas || unidad.placa) { // Handle both 'placas' or 'placa'
+        message += `Placas: ${unidad.placas || unidad.placa}. `;
+      }
+      if (Object.keys(unidad).length === 0 || 
+          (!unidad.operador && !unidad.tipoGrua && !unidad.color && !unidad.unidadOperativa && !(unidad.placas || unidad.placa))) {
+        message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
+      }
+    } else {
+      message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
+    }
+    
+    const sayUnidad = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    
+    // Pequeña pausa natural
+    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    
+    // Redirigir directamente al menú sin esperar input
+    const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
+    
+    return XMLBuilder.buildResponse([sayUnidad, pause, redirect]);
   }
 }
 

@@ -168,6 +168,9 @@ class IVRController {
           // Opción 4: Ubicación (antes era opción 3)
           responseXML = menuService.buildLocationMenu(datos, callSid, expediente);
           break;
+        case '5': // NUEVO: Datos de la unidad operativa
+          responseXML = menuService.buildUnidadOperativaMenu(datos, callSid, expediente);
+          break;
         case '9':
           // Nueva consulta
           await redisService.delete(`call_${callSid}`);
@@ -220,6 +223,12 @@ class IVRController {
     if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
       menuOptions.push("Presione 4 para ubicación y tiempo de llegada");
       validDigits += '4';
+    }
+
+    // Opción 5: Datos de la unidad operativa (NUEVO)
+    if (datos.unidad && Object.keys(datos.unidad).length > 0) {
+      menuOptions.push("Presione 5 para datos de la unidad operativa");
+      validDigits += '5';
     }
     
     menuOptions.push("Presione 9 para consultar otro expediente");
