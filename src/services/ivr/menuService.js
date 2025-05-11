@@ -1,4 +1,4 @@
-// src/services/ivr/menuService.js - AGREGANDO MÉTODO FALTANTE
+// src/services/ivr/menuService.js - VERSIÓN COMPLETA
 const XMLBuilder = require('../../texml/helpers/xmlBuilder');
 const config = require('../../config/texml');
 
@@ -33,7 +33,6 @@ class MenuService {
     ]);
   }
   
-  // ESTE MÉTODO FALTABA
   buildExpedienteRequestMenu() {
     const sayElement = XMLBuilder.addSay(
       "Por favor, proporcione el número de expediente a revisar, seguido de la tecla numeral.",
@@ -64,7 +63,7 @@ class MenuService {
     ]);
   }
   
-  buildExpedienteMenu(datos, sessionId, expediente) {
+  buildExpedienteMenu(datos, callSid, expediente) {
     let menuOptions = [];
     let validDigits = '';
     
@@ -103,8 +102,8 @@ class MenuService {
     );
     
     const gatherElement = XMLBuilder.addGather({
-      action: `/procesar-opcion?sessionId=${sessionId}&expediente=${expediente}`,
-      method: 'GET',
+      action: `/procesar-opcion`,
+      method: 'POST',
       input: 'dtmf',
       numDigits: '1',
       timeout: '15',
@@ -112,19 +111,13 @@ class MenuService {
       nested: menuSay
     });
     
-    const redirect = XMLBuilder.addRedirect(
-      `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-      'GET'
-    );
-    
     return XMLBuilder.buildResponse([
       introSay,
-      gatherElement,
-      redirect
+      gatherElement
     ]);
   }
   
-  buildCostsMenu(datos, sessionId, expediente) {
+  buildCostsMenu(datos, callSid, expediente) {
     const costos = datos.costos;
     let message = `Información de costos del expediente ${expediente}. `;
     
@@ -144,37 +137,140 @@ class MenuService {
       message += `Costo por kilómetro: ${costos.costoKm}. `;
     }
     
+    if (costos.casetaCubierta > 0) {
+      message += `Caseta cubierta: ${costos.casetaCubierta} pesos. `;
+    }
+    
+    if (costos.maniobras > 0) {
+      message += `Maniobras: ${costos.maniobras} pesos. `;
+    }
+    
     message += "Presione cualquier tecla para volver al menú.";
     
     const sayCosts = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
     
     const gatherElement = XMLBuilder.addGather({
-      action: `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-      method: 'GET',
+      action: `/menu-expediente`,
+      method: 'POST',
       input: 'dtmf',
       numDigits: '1',
       timeout: '10'
     });
     
     const redirect = XMLBuilder.addRedirect(
-      `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-      'GET'
+      `/menu-expediente`,
+      'POST'
     );
     
     return XMLBuilder.buildResponse([sayCosts, gatherElement, redirect]);
   }
   
-  // Agregar métodos similares para unit, location y times...
-  buildUnitMenu(datos, sessionId, expediente) {
-    // Implementación
+  buildUnitMenu(datos, callSid, expediente) {
+    const unidad = datos.unidad;
+    let message = `Información de la unidad del expediente ${expediente}. `;
+    
+    if (unidad.operador) {
+      message += `Operador: ${unidad.operador}. `;
+    }
+    
+    if (unidad.tipoGrua) {
+      message += `Tipo de grúa: ${unidad.tipoGrua}. `;
+    }
+    
+    if (unidad.color) {
+      message += `Color: ${unidad.color}. `;
+    }
+    
+    if (unidad.unidadOperativa) {
+      message += `Número económico: ${unidad.unidadOperativa}. `;
+    }
+    
+    if (unidad.placas) {
+      message += `Placas: ${unidad.placas}. `;
+    }
+    
+    message += "Presione cualquier tecla para volver al menú.";
+    
+    const sayUnit = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    
+    const gatherElement = XMLBuilder.addGather({
+      action: `/menu-expediente`,
+      method: 'POST',
+      input: 'dtmf',
+      numDigits: '1',
+      timeout: '10'
+    });
+    
+    const redirect = XMLBuilder.addRedirect(
+      `/menu-expediente`,
+      'POST'
+    );
+    
+    return XMLBuilder.buildResponse([sayUnit, gatherElement, redirect]);
   }
   
-  buildLocationMenu(datos, sessionId, expediente) {
-    // Implementación
+  buildLocationMenu(datos, callSid, expediente) {
+    const ubicacion = datos.ubicacion;
+    let message = `Información de ubicación del expediente ${expediente}. `;
+    
+    if (ubicacion.tiempoRestante) {
+      message += `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}. `;
+    }
+    
+    if (ubicacion.ubicacionGrua) {
+      message += `La unidad está en camino. `;
+    }
+    
+    message += "Presione cualquier tecla para volver al menú.";
+    
+    const sayLocation = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    
+    const gatherElement = XMLBuilder.addGather({
+      action: `/menu-expediente`,
+      method: 'POST',
+      input: 'dtmf',
+      numDigits: '1',
+      timeout: '10'
+    });
+    
+    const redirect = XMLBuilder.addRedirect(
+      `/menu-expediente`,
+      'POST'
+    );
+    
+    return XMLBuilder.buildResponse([sayLocation, gatherElement, redirect]);
   }
   
-  buildTimesMenu(datos, sessionId, expediente) {
-    // Implementación
+  buildTimesMenu(datos, callSid, expediente) {
+    const tiempos = datos.tiempos;
+    let message = `Información de tiempos del expediente ${expediente}. `;
+    
+    if (tiempos.tc) {
+      message += `Tiempo de contacto: ${tiempos.tc}. `;
+    }
+    
+    if (tiempos.tt) {
+      message += `Tiempo de término: ${tiempos.tt}. `;
+    }
+    
+    message += "Presione cualquier tecla para volver al menú.";
+    
+    const sayTimes = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    
+    const gatherElement = XMLBuilder.addGather({
+      action: `/menu-expediente`,
+      method: 'POST',
+      input: 'dtmf',
+      numDigits: '1',
+      timeout: '10'
+    });
+    
+    const redirect = XMLBuilder.addRedirect(
+      `/menu-expediente`,
+      'POST'
+    );
+    
+    return XMLBuilder.buildResponse([sayTimes, gatherElement, redirect]);
   }
 }
 
