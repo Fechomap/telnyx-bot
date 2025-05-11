@@ -114,7 +114,12 @@ describe('IVR System Integration Tests', () => {
     
     it('should delete session data when starting new query', async () => {
       const sessionId = 'test_session_456';
-      await redisService.set(sessionId, { test: true });
+      // AQUÍ ESTÁ LA CORRECCIÓN - Estructura correcta de datos
+      await redisService.set(sessionId, { 
+        expediente: '12345',
+        datos: { test: true },
+        createdAt: Date.now()
+      });
       
       const response = await request(server)
         .post('/procesar-opcion')

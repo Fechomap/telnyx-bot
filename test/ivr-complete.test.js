@@ -166,8 +166,12 @@ describe('IVR System Complete Test Suite', () => {
     test('should handle new query option', async () => {
       const sessionId = 'test_session_nav';
       
-      // Primero guardar datos en Redis
-      await redisService.set(sessionId, { test: true });
+      // AQUÍ ESTÁ LA CORRECCIÓN - Estructura correcta de datos
+      await redisService.set(sessionId, { 
+        expediente: '12345',
+        datos: { test: true },
+        createdAt: Date.now()
+      });
       
       const response = await request(server)
         .post('/procesar-opcion')

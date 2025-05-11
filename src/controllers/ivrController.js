@@ -18,7 +18,7 @@ class IVRController {
       
       const gatherElement = XMLBuilder.addGather({
         action: '/menu-selection',
-        method: 'POST',
+        method: 'GET',  // Cambiado a GET porque Telnyx está usando GET
         input: 'dtmf',
         numDigits: '1',
         timeout: '10',
@@ -50,11 +50,13 @@ class IVRController {
   async handleMenuSelection(req, res) {
     try {
       const digit = req.body.Digits || req.query.Digits;
+      console.log(`🔢 Dígito recibido: ${digit}`);
       
       switch(digit) {
         case '1':
-          res.redirect('/solicitar-expediente');
-          break;
+          // En lugar de redirect, enviamos el XML directamente
+          return this.requestExpediente(req, res);
+          
         case '2':
           // Opción para futuro desarrollo
           const unavailableSay = XMLBuilder.addSay(
@@ -71,8 +73,21 @@ class IVRController {
           res.header('Content-Type', 'application/xml');
           res.send(responseXML);
           break;
+          
         default:
-          res.redirect('/welcome');
+          const invalidSay = XMLBuilder.addSay(
+            "Opción no válida.",
+            { voice: 'Polly.Mia-Neural' }
+          );
+          const redirectWelcome = XMLBuilder.addRedirect('/welcome');
+          
+          const defaultXML = XMLBuilder.buildResponse([
+            invalidSay,
+            redirectWelcome
+          ]);
+          
+          res.header('Content-Type', 'application/xml');
+          res.send(defaultXML);
       }
     } catch (error) {
       this.handleError(res, error, 'menu-selection');
@@ -89,7 +104,7 @@ class IVRController {
       
       const gatherElement = XMLBuilder.addGather({
         action: '/validar-expediente',
-        method: 'POST',
+        method: 'GET',  // Cambiado a GET
         input: 'dtmf',
         finishOnKey: '#',
         timeout: '10',
@@ -118,10 +133,12 @@ class IVRController {
   }
 
   // 4. Validar y Buscar Expediente
-async validateExpediente(req, res) {
+  async validateExpediente(req, res) {
     try {
       const digits = req.body.Digits || req.query.Digits || '';
       const expediente = digits.replace('#', '').trim();
+      
+      console.log(`📦 Validando expediente: ${expediente}`);
       
       // Validar que sea numérico primero
       if (!expediente || expediente.length < 3 || isNaN(expediente)) {
@@ -156,8 +173,10 @@ async validateExpediente(req, res) {
           createdAt: Date.now()
         });
         
-        // Redirigir al menú del expediente
-        res.redirect(`/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`);
+        // Mostrar menú directamente en lugar de redirect
+        req.query.sessionId = sessionId;
+        req.query.expediente = expediente;
+        return this.showExpedienteMenu(req, res);
       } else {
         monitoring.trackExpediente('notFound', expediente);
         
@@ -183,7 +202,7 @@ async validateExpediente(req, res) {
       const expediente = req.query.expediente;
       
       if (!sessionId) {
-        return res.redirect('/welcome');
+        return this.handleWelcome(req, res);
       }
       
       // Obtener datos de Redis
@@ -243,7 +262,7 @@ async validateExpediente(req, res) {
       
       const gatherElement = XMLBuilder.addGather({
         action: `/procesar-opcion?sessionId=${sessionId}&expediente=${expediente}`,
-        method: 'POST',
+        method: 'GET',  // Cambiado a GET
         input: 'dtmf',
         numDigits: '1',
         timeout: '10',
@@ -273,15 +292,17 @@ async validateExpediente(req, res) {
       const expediente = req.query.expediente;
       const option = req.body.Digits || req.query.Digits;
       
+      console.log(`⚡ Procesando opción: ${option} para expediente: ${expediente}`);
+      
       if (!sessionId) {
-        return res.redirect('/welcome');
+        return this.handleWelcome(req, res);
       }
       
       // Obtener datos de Redis
       const sessionData = await redisService.get(sessionId);
       
       if (!sessionData || !sessionData.datos) {
-        return res.redirect('/welcome');
+        return this.handleWelcome(req, res);
       }
       
       switch(option) {
@@ -298,20 +319,37 @@ async validateExpediente(req, res) {
           await this.showTimes(res, sessionData.datos, sessionId, expediente);
           break;
         case '9':
-          await this.newQuery(res, sessionId);
+          // Limpiar datos de la sesión anterior
+          if (sessionId) {
+            await redisService.delete(sessionId);
+          }
+          
+          const newQuerySay = XMLBuilder.addSay(
+            "Iniciando nueva consulta.",
+            { voice: 'Polly.Mia-Neural' }
+          );
+          
+          const redirect = XMLBuilder.addRedirect('/solicitar-expediente');
+          
+          const responseXML = XMLBuilder.buildResponse([newQuerySay, redirect]);
+          res.header('Content-Type', 'application/xml');
+          res.status(200).send(responseXML);
           break;
         case '0':
           await this.transferToAgent(res, sessionId);
           break;
         default:
-          res.redirect(`/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`);
+          // Volver al menú
+          req.query.sessionId = sessionId;
+          req.query.expediente = expediente;
+          return this.showExpedienteMenu(req, res);
       }
     } catch (error) {
       this.handleError(res, error, 'process-option');
     }
   }
 
-  // Métodos auxiliares para cada opción
+  // Métodos auxiliares igual que antes...
   async showCosts(res, datos, sessionId, expediente) {
     const costos = datos.costos;
     let message = `Información de costos del expediente ${expediente}. `;
@@ -338,7 +376,7 @@ async validateExpediente(req, res) {
     
     const gatherElement = XMLBuilder.addGather({
       action: `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-      method: 'POST',
+      method: 'GET',
       input: 'dtmf',
       numDigits: '1',
       timeout: '10'
@@ -377,7 +415,7 @@ async validateExpediente(req, res) {
     
     const gatherElement = XMLBuilder.addGather({
       action: `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-      method: 'POST',
+      method: 'GET',
       input: 'dtmf',
       numDigits: '1',
       timeout: '10'
@@ -404,7 +442,7 @@ async validateExpediente(req, res) {
     
     const gatherElement = XMLBuilder.addGather({
       action: `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-      method: 'POST',
+      method: 'GET',
       input: 'dtmf',
       numDigits: '1',
       timeout: '10'
@@ -435,7 +473,7 @@ async validateExpediente(req, res) {
     
     const gatherElement = XMLBuilder.addGather({
       action: `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-      method: 'POST',
+      method: 'GET',
       input: 'dtmf',
       numDigits: '1',
       timeout: '10'
@@ -444,22 +482,6 @@ async validateExpediente(req, res) {
     const redirect = XMLBuilder.addRedirect(`/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`);
     
     const responseXML = XMLBuilder.buildResponse([sayTimes, gatherElement, redirect]);
-    res.header('Content-Type', 'application/xml');
-    res.send(responseXML);
-  }
-
-  async newQuery(res, sessionId) {
-    // Limpiar datos de la sesión anterior
-    await redisService.delete(sessionId);
-    
-    const newQuerySay = XMLBuilder.addSay(
-      "Iniciando nueva consulta.",
-      { voice: 'Polly.Mia-Neural' }
-    );
-    
-    const redirect = XMLBuilder.addRedirect('/solicitar-expediente');
-    
-    const responseXML = XMLBuilder.buildResponse([newQuerySay, redirect]);
     res.header('Content-Type', 'application/xml');
     res.send(responseXML);
   }
