@@ -7,7 +7,7 @@ class MenuService {
   buildWelcomeMenu() {
     const sayElement = XMLBuilder.addSay(
       "Bienvenido. Para seguimiento de expediente, presione 1. Para cotizar un servicio, presione 2.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
     );
     
     const gatherElement = XMLBuilder.addGather({
@@ -22,7 +22,7 @@ class MenuService {
     
     const timeoutSay = XMLBuilder.addSay(
       "No se detectó una opción válida.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
     );
     
     const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
@@ -37,7 +37,7 @@ class MenuService {
   buildExpedienteRequestMenu() {
     const sayElement = XMLBuilder.addSay(
       "Por favor, proporcione el número de expediente a revisar, seguido de la tecla numeral.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
     );
     
     const gatherElement = XMLBuilder.addGather({
@@ -52,7 +52,7 @@ class MenuService {
     
     const timeoutSay = XMLBuilder.addSay(
       "No se detectó ningún número.",
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
     );
     
     const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
@@ -111,7 +111,7 @@ class MenuService {
     if (!introShown) {
       const introSay = XMLBuilder.addSay(
         `Expediente ${expediente} encontrado. Seleccione una opción:`,
-        { voice: 'Polly.Mia-Neural' }
+        { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
       );
       responseElements.push(introSay);
       // Mark that the intro message has now been shown
@@ -120,7 +120,7 @@ class MenuService {
     
     const menuSay = XMLBuilder.addSay(
       menuOptions.join('. '),
-      { voice: 'Polly.Mia-Neural' }
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
     );
     
     const gatherElement = XMLBuilder.addGather({
@@ -164,10 +164,10 @@ class MenuService {
       message += `Destino: ${datosGenerales.destino}. `;
     }
     
-    const sayInfo = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    const sayInfo = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Redirigir directamente al menú sin esperar input
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
@@ -203,10 +203,10 @@ class MenuService {
       message += `Maniobras: ${costos.maniobras} pesos. `;
     }
     
-    const sayCosts = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    const sayCosts = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Redirigir directamente al menú sin esperar input
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
@@ -230,10 +230,10 @@ class MenuService {
       message += `No hay información de tiempos disponible en este momento. `;
     }
     
-    const sayTimes = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    const sayTimes = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Redirigir directamente al menú sin esperar input
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
@@ -257,10 +257,10 @@ class MenuService {
       message += `No hay información de ubicación disponible en este momento. `;
     }
     
-    const sayLocation = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    const sayLocation = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Redirigir directamente al menú sin esperar input
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
@@ -296,10 +296,10 @@ class MenuService {
       message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
     }
     
-    const sayUnidad = XMLBuilder.addSay(message, { voice: 'Polly.Mia-Neural' });
+    const sayUnidad = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Pequeña pausa natural
-    const pause = XMLBuilder.addSay(". ", { voice: 'Polly.Mia-Neural' });
+    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
     
     // Redirigir directamente al menú sin esperar input
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');

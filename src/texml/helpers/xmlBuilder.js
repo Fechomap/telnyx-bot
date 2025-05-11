@@ -26,36 +26,15 @@ class XMLBuilder {
    * @returns {string} Elemento Say en XML
    */
   static addSay(text, options = {}) {
-    // Usar el formato específico requerido por Telnyx
-    // El formato correcto es voice="Polly.Mia-Neural" en lugar de los múltiples atributos
+    // Prioritize options.voice if provided. Default to Polly.Mia-Neural if no voice is specified.
+    const voiceAttribute = options.voice || "Polly.Mia-Neural"; 
+    // Prioritize options.language if provided. Default to es-MX.
+    const languageAttribute = options.language || "es-MX"; 
+
+    // The voiceAttribute should be the full string like "Polly.Mia-Neural" or "Azure.es-MX-DaliaNeural".
+    // The languageAttribute is standard. Telnyx will interpret these for the respective TTS engine.
     
-    // Valor por defecto: voz Mia en español mexicano
-    let voiceFormat = "Polly.Mia-Neural";
-    
-    // Permitir personalización de voz si se proporciona en options
-    if (options && options.voice) {
-      switch (options.voice.toLowerCase()) {
-        case "Mia":
-          voiceFormat = "Polly.Mia-Neural";
-          break;
-        case "pedro":
-          voiceFormat = "Polly.Pedro-Neural";
-          break;
-        case "joanna":
-          voiceFormat = "Polly.Joanna-Neural";
-          break;
-        case "matthew":
-          voiceFormat = "Polly.Matthew-Neural";
-          break;
-        case "mia":
-        default:
-          voiceFormat = "Polly.Mia-Neural";
-          break;
-      }
-    }
-    
-    // Construir el elemento Say con el atributo voice correcto
-    return `  <Say voice="${voiceFormat}">\n    ${this.escapeXML(text)}\n  </Say>\n`;
+    return `  <Say voice="${voiceAttribute}" language="${languageAttribute}">\n    ${this.escapeXML(text)}\n  </Say>\n`;
   }
 
   /**
