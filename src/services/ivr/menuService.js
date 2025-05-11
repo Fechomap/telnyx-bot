@@ -155,8 +155,17 @@ class MenuService {
     const introShown = await SessionService.hasIntroMessageBeenShown(callSid, expediente);
 
     if (!introShown) {
+      // Obtener el estatus del expediente
+      const estatus = datos.datosGenerales?.estatus || 'Desconocido';
+      
+      // Obtener el nombre del cliente y limpiarlo de espacios extra
+      const nombre = datos.datosGenerales?.nombre?.trim() || 'Cliente no especificado';
+      
+      // Formatear el número de expediente para que se lea por pares
+      const expedienteFormateado = expediente.match(/.{1,2}/g).join(' ');
+      
       const introSay = XMLBuilder.addSay(
-        `Expediente ${expediente} encontrado`,
+        `Perfecto, el expediente ${expedienteFormateado}, a nombre de ${nombre} se encuentra actualmente en estado ${estatus}`,
         { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
       );
       responseElements.push(introSay);
