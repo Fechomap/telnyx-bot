@@ -12,7 +12,7 @@ const ivrRoutes = require('./src/routes/ivrRoutes');
 const redisService = require('./src/services/redisService');
 const config = require('./src/config/texml');
 const monitoring = require('./src/utils/monitoring');
-const dashboard = require('./src/utils/dashboard');
+// const dashboard = require('./src/utils/dashboard');
 
 // Inicializar aplicación Express
 const app = express();
@@ -171,7 +171,7 @@ async function startServer() {
     
     // Configurar dashboard si está habilitado
     if (process.env.DASHBOARD_ENABLED === 'true') {
-      dashboard.setupDashboard(app);
+      // dashboard.setupDashboard(app);
     }
     
     return server;
