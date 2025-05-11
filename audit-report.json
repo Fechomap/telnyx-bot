@@ -1,0 +1,129 @@
+{
+  "timestamp": "2025-05-11T03:44:53.074Z",
+  "totalFiles": 14,
+  "filesWithAI": 6,
+  "filesWithRedis": 1,
+  "filesWithMia": 4,
+  "issues": [
+    {
+      "path": "src/routes/texmlRoutes.js",
+      "hasAI": true,
+      "aiMatches": [
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController",
+        "aiController"
+      ],
+      "hasRedis": false,
+      "hasMiaVoice": false,
+      "issues": [
+        "Contiene código AI que debe ser eliminado"
+      ]
+    },
+    {
+      "path": "src/texml/handlers/templateHandler.js",
+      "hasAI": true,
+      "aiMatches": [
+        "aiAssistant",
+        "AIAssistant",
+        "AIAssistant"
+      ],
+      "hasRedis": false,
+      "hasMiaVoice": false,
+      "issues": [
+        "Contiene código AI que debe ser eliminado"
+      ]
+    },
+    {
+      "path": "src/texml/helpers/xmlBuilder.js",
+      "hasAI": true,
+      "aiMatches": [
+        "AIAssistant",
+        "AIAssistant",
+        "AIAssistant",
+        "AIAssistant"
+      ],
+      "hasRedis": false,
+      "hasMiaVoice": true,
+      "issues": [
+        "Contiene código AI que debe ser eliminado"
+      ]
+    },
+    {
+      "path": "src/texml/templates/welcome.js",
+      "hasAI": true,
+      "aiMatches": [
+        "AIAssistant"
+      ],
+      "hasRedis": false,
+      "hasMiaVoice": true,
+      "issues": [
+        "Contiene código AI que debe ser eliminado"
+      ]
+    },
+    {
+      "path": "src/utils/dashboard.js",
+      "hasAI": true,
+      "aiMatches": [
+        "speechRecognition",
+        "speechRecognition"
+      ],
+      "hasRedis": false,
+      "hasMiaVoice": false,
+      "issues": [
+        "Contiene código AI que debe ser eliminado"
+      ]
+    },
+    {
+      "path": "src/utils/monitoring.js",
+      "hasAI": true,
+      "aiMatches": [
+        "speechRecognition",
+        "SpeechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "speechRecognition",
+        "SpeechRecognition"
+      ],
+      "hasRedis": false,
+      "hasMiaVoice": false,
+      "issues": [
+        "Contiene código AI que debe ser eliminado"
+      ]
+    }
+  ]
+}

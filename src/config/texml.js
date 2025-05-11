@@ -1,3 +1,4 @@
+// src/config/texml.js
 module.exports = {
   // Configuración del servicio
   service: {
@@ -6,43 +7,51 @@ module.exports = {
     connectionId: process.env.TELNYX_CONNECTION_ID
   },
   
-  // Configuración de rutas TeXML
+  // Configuración de rutas (sin AI)
   routes: {
     welcome: '/welcome',
-    processExpediente: '/procesar-expediente',
-    interact: '/interactuar',
-    agent: '/agent'
+    menuSelection: '/menu-selection',
+    requestExpediente: '/solicitar-expediente',
+    validateExpediente: '/validar-expediente',
+    expedienteMenu: '/menu-expediente',
+    processOption: '/procesar-opcion',
+    transferAgent: '/transferir-agente'
   },
   
   // Configuración de Text-to-Speech
   tts: {
-    provider: 'polly',  // Especifica polly como provider
-    voice: 'Polly.Mia-Neural',      // Solo el nombre base
+    provider: 'polly',
+    voice: 'Polly.Mia-Neural',
     language: 'es-MX'
   },
   
-  // Configuración de AI - usar configuración mínima
-  ai: {
-    enabled: true,
-    model: 'telnyx',    // Usa el modelo por defecto de Telnyx
-    maxTurns: 15,
-    interruptible: true
+  // Configuración de caché
+  cache: {
+    type: 'redis',
+    ttl: 1800, // 30 minutos
+    redisUrl: process.env.REDIS_URL || 'redis://localhost:6379'
   },
   
   // Configuración de tiempos
   timeout: {
-    expediente: 30,   // Segundos para ingresar expediente
-    conversation: 60, // Segundos sin respuesta en conversación
-    session: 1800     // Duración total de sesión (30 minutos)
+    menuInput: 10,     // Segundos para seleccionar en menú
+    expediente: 15,    // Segundos para ingresar expediente
+    options: 10        // Segundos para opciones de expediente
   },
   
   // Configuración de transferencia a agentes
   transfer: {
-    enabled: true,
-    agentNumber: process.env.AGENT_NUMBER || '+525588974509', // ASEGÚRATE DE TENER UN NÚMERO
-    transferMessage: "Transfiriendo a un agente. Por favor espere un momento..."
+    enabled: process.env.TRANSFER_ENABLED === 'true',
+    agentNumber: process.env.AGENT_NUMBER || '+525588974509',
+    transferMessage: "Transfiriendo a un asesor. Por favor espere un momento."
   },
   
-  // Token de administrador para dashboard
+  // Configuración de monitoreo
+  monitoring: {
+    enabled: true,
+    logLevel: process.env.LOG_LEVEL || 'info'
+  },
+  
+  // Token de administrador
   adminToken: process.env.ADMIN_TOKEN || 'admin'
 };
