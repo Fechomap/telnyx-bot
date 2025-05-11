@@ -99,11 +99,82 @@ class ResponseService {
   }
   
   buildTransferResponse() {
+    // Obtener la configuración
+    const config = require('../../config/texml');
+    
+    console.log('🔄 Iniciando transferencia a asesor');
+    console.log(`✅ Transferencia habilitada: ${config.transfer.enabled}`);
+    console.log(`✅ Números configurados: ${config.transfer.agentNumber}`);
+    
+    // Verificar si la transferencia está habilitada
+    if (!config.transfer.enabled) {
+      console.log('❌ Transferencia deshabilitada en configuración');
+      const say = XMLBuilder.addSay(
+        "Lo siento, en este momento no es posible transferirle con un asesor.",
+        { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
+      );
+      return XMLBuilder.buildResponse([say]);
+    }
+    
+    const elements = [];
+    
+    // Añadir mensaje antes de transferir
     const say = XMLBuilder.addSay(
-      "Lo siento, en este momento no es posible transferirle con un asesor.",
+      config.transfer.transferMessage || "Transfiriendo a un asesor. Por favor espere un momento.",
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
-    return XMLBuilder.buildResponse([say]);
+    elements.push(say);
+    
+    // Procesar números de agentes
+    let agentNumbers = [];
+    if (config.transfer.agentNumber.includes(',')) {
+      // Si hay múltiples números separados por comas
+      agentNumbers = config.transfer.agentNumber.split(',').map(num => num.trim());
+    } else {
+      // Si solo hay un número
+      agentNumbers = [config.transfer.agentNumber.trim()];
+    }
+    
+    // En lugar de usar múltiples números en un solo Dial, 
+    // creamos un elemento Dial separado para cada número
+    // Esto puede ayudar si hay problemas con el formato multi-ring
+    for (const number of agentNumbers) {
+      console.log(`📞 Configurando marcación al número: ${number}`);
+      
+      // Asegurarse de que el número tiene el formato correcto para Telnyx
+      // Algunos sistemas requieren formato E.164 estricto
+      const formattedNumber = number.startsWith('+') ? number : `+${number}`;
+      
+      const dial = XMLBuilder.addDial(
+        formattedNumber,
+        { 
+          callerId: config.service.callerId || "+525588974515", // Usar el caller ID configurado o uno por defecto
+          timeout: '30',  // 30 segundos es suficiente para una prueba
+          timeLimit: '3600' // 1 hora
+        }
+      );
+      
+      console.log(`✅ Configurado marcado a: ${formattedNumber}`);
+      elements.push(dial);
+    }
+    
+    // Mensaje si ninguno contesta
+    const noAnswerSay = XMLBuilder.addSay(
+      "Lo sentimos, ningún asesor está disponible en este momento. Volviendo al menú principal.",
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
+    );
+    elements.push(noAnswerSay);
+    
+    // Redirigir al menú principal
+    const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
+    elements.push(redirect);
+    
+    const responseXML = XMLBuilder.buildResponse(elements);
+    console.log('📄 XML de transferencia generado:');
+    // Mostrar solo las primeras 500 caracteres para no saturar los logs
+    console.log(responseXML.substring(0, 500) + '...');
+    
+    return responseXML;
   }
 }
 
