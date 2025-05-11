@@ -64,38 +64,18 @@ class IVRController {
           createdAt: Date.now()
         });
         
-        console.log(`✅ Datos guardados, generando menú directamente...`);
+        console.log(`✅ Datos guardados, llamando a buildExpedienteMenu...`);
         
-        // Generar el menú directamente sin redirección
-        const menuOptions = this.generateMenuOptions(result.datos);
-        
-        const sayIntro = XMLBuilder.addSay(
-          `Expediente ${expediente} encontrado. Seleccione una opción:`,
-          { voice: 'Polly.Mia-Neural' }
+        // Llamar a menuService.buildExpedienteMenu para construir el menú
+        // Esto asegura que la lógica de "mostrar una vez" se aplique desde el inicio.
+        const responseXML = await menuService.buildExpedienteMenu(
+          result.datos,
+          callSid,
+          expediente
         );
         
-        const sayOptions = XMLBuilder.addSay(
-          menuOptions.text,
-          { voice: 'Polly.Mia-Neural' }
-        );
-        
-        const gatherElement = XMLBuilder.addGather({
-          action: `/procesar-opcion`,
-          method: 'POST',
-          input: 'dtmf',
-          numDigits: '1',
-          timeout: '15',
-          validDigits: menuOptions.validDigits,
-          nested: sayOptions
-        });
-        
-        const responseXML = XMLBuilder.buildResponse([
-          sayIntro,
-          gatherElement
-        ]);
-        
-        console.log(`📄 XML generado directamente (sin redirección)`);
-        console.log(responseXML);
+        console.log(`📄 XML generado por menuService.buildExpedienteMenu`);
+        // console.log(responseXML); // Puede ser muy verboso
         res.header('Content-Type', 'application/xml');
         res.send(responseXML);
         console.log(`✅ Respuesta enviada`);
@@ -133,7 +113,7 @@ class IVRController {
       
       const { expediente, datos } = sessionData;
       
-      const responseXML = menuService.buildExpedienteMenu(
+      const responseXML = await menuService.buildExpedienteMenu( // Added await
         datos, 
         callSid, 
         expediente
@@ -199,7 +179,7 @@ class IVRController {
           break;
         default:
           // Opción inválida - volver al menú
-          responseXML = menuService.buildExpedienteMenu(
+          responseXML = await menuService.buildExpedienteMenu( // Added await
             datos, 
             callSid, 
             expediente

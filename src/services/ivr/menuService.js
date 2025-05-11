@@ -1,6 +1,7 @@
 // src/services/ivr/menuService.js - VERSIÓN CORREGIDA CON FLUJO CONTINUO
 const XMLBuilder = require('../../texml/helpers/xmlBuilder');
 const config = require('../../config/texml');
+const SessionService = require('./sessionService'); // Import SessionService
 
 class MenuService {
   buildWelcomeMenu() {
@@ -63,7 +64,7 @@ class MenuService {
     ]);
   }
   
-  buildExpedienteMenu(datos, callSid, expediente) {
+  async buildExpedienteMenu(datos, callSid, expediente) { // Mark function as async
     let menuOptions = [];
     let validDigits = '';
     
@@ -95,11 +96,21 @@ class MenuService {
     menuOptions.push("Presione 9 para consultar otro expediente");
     menuOptions.push("Presione 0 para hablar con un asesor");
     validDigits += '90';
+
+    const responseElements = [];
     
-    const introSay = XMLBuilder.addSay(
-      `Expediente ${expediente} encontrado. Seleccione una opción:`,
-      { voice: 'Polly.Mia-Neural' }
-    );
+    // Check if the intro message has been shown
+    const introShown = await SessionService.hasIntroMessageBeenShown(callSid, expediente);
+
+    if (!introShown) {
+      const introSay = XMLBuilder.addSay(
+        `Expediente ${expediente} encontrado. Seleccione una opción:`,
+        { voice: 'Polly.Mia-Neural' }
+      );
+      responseElements.push(introSay);
+      // Mark that the intro message has now been shown
+      await SessionService.markIntroMessageShown(callSid, expediente);
+    }
     
     const menuSay = XMLBuilder.addSay(
       menuOptions.join('. '),
@@ -113,13 +124,12 @@ class MenuService {
       numDigits: '1',
       timeout: '15',
       validDigits: validDigits,
-      nested: menuSay
+      nested: menuSay // menuSay should be nested directly in Gather
     });
+
+    responseElements.push(gatherElement);
     
-    return XMLBuilder.buildResponse([
-      introSay,
-      gatherElement
-    ]);
+    return XMLBuilder.buildResponse(responseElements);
   }
   
   // CAMBIO CRÍTICO: Eliminar gather y redirigir directamente al menú después de mostrar información
