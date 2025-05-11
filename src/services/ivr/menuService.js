@@ -6,7 +6,7 @@ const SessionService = require('./sessionService'); // Import SessionService
 class MenuService {
   buildWelcomeMenu() {
     const sayElement = XMLBuilder.addSay(
-      "Bienvenido. Para seguimiento de expediente, presione 1. Para cotizar un servicio, presione 2.",
+      "Hola! Seguimiento a expediente presione 1, Cotizar un servicio presione 2.",
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
     );
     
@@ -36,7 +36,7 @@ class MenuService {
   
   buildExpedienteRequestMenu() {
     const sayElement = XMLBuilder.addSay(
-      "Por favor, proporcione el número de expediente a revisar, seguido de la tecla numeral.",
+      "Proporciona el número de expediente y despues la tecla GATO",
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
     );
     
@@ -77,30 +77,30 @@ class MenuService {
     
     // Opción 2: Costos
     if (datos.costos && Object.keys(datos.costos).length > 0) {
-      menuOptions.push("Presione dos para consultar costos");
+      menuOptions.push("dos para costos");
       validDigits += '2';
     }
     
     // Opción 3: Tiempos del servicio
     if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
-      menuOptions.push("Presione tres para tiempos del servicio");
+      menuOptions.push("tres para tiempos");
       validDigits += '3';
     }
     
     // Opción 4: Ubicación
     if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
-      menuOptions.push("Presione cuatro para ubicación y tiempo de llegada");
+      menuOptions.push("cuatro para ubicación y tiempo de llegada");
       validDigits += '4';
     }
 
     // Opción 5: Datos de la unidad operativa (NUEVO)
     if (datos.unidad && Object.keys(datos.unidad).length > 0) {
-      menuOptions.push("Presione cinco para datos de la unidad operativa");
+      menuOptions.push("cinco para datos de la unidad");
       validDigits += '5';
     }
     
-    menuOptions.push("Presione nueve para consultar otro expediente");
-    menuOptions.push("Presione cero para hablar con un asesor");
+    menuOptions.push("nueve para consultar otro expediente");
+    menuOptions.push("cero para hablar con un asesor");
     validDigits += '90';
 
     const responseElements = [];
@@ -110,7 +110,7 @@ class MenuService {
 
     if (!introShown) {
       const introSay = XMLBuilder.addSay(
-        `Expediente ${expediente} encontrado. Seleccione una opción:`,
+        `Expediente ${expediente} encontrado`,
         { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' } // Changed to Azure Dalia
       );
       responseElements.push(introSay);
@@ -142,7 +142,7 @@ class MenuService {
   
   buildGeneralInfoMenu(datos, callSid, expediente) {
     const datosGenerales = datos.datosGenerales;
-    let message = `Información general del expediente ${expediente}. `;
+    let message = `Información general de ${expediente}. `;
     
     if (datosGenerales.nombre) {
       message += `Cliente: ${datosGenerales.nombre}. `;
@@ -177,7 +177,7 @@ class MenuService {
   
   buildCostsMenu(datos, callSid, expediente) {
     const costos = datos.costos;
-    let message = `Información de costos del expediente ${expediente}. `;
+    let message = `el desglose de ${expediente}, es. `;
     
     if (costos.costo) {
       message += `El costo total es ${costos.costo}. `;
@@ -216,18 +216,18 @@ class MenuService {
   
   buildTimesMenu(datos, callSid, expediente) {
     const tiempos = datos.tiempos;
-    let message = `Información de tiempos del expediente ${expediente}. `;
+    let message = `los tiempos de ${expediente} son. `;
     
     if (tiempos.tc) {
-      message += `Tiempo de contacto: ${tiempos.tc}. `;
+      message += `contacto: ${tiempos.tc}. `;
     }
     
     if (tiempos.tt) {
-      message += `Tiempo de término: ${tiempos.tt}. `;
+      message += `término: ${tiempos.tt}. `;
     }
     
     if (!tiempos.tc && !tiempos.tt) {
-      message += `No hay información de tiempos disponible en este momento. `;
+      message += `aun No hay información de tiempos disponible en este momento. `;
     }
     
     const sayTimes = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }); // Changed to Azure Dalia
@@ -243,7 +243,7 @@ class MenuService {
   
   buildLocationMenu(datos, callSid, expediente) {
     const ubicacion = datos.ubicacion;
-    let message = `Información de ubicación del expediente ${expediente}. `;
+    let message = `los datos de ${expediente} son. `;
     
     if (ubicacion.tiempoRestante) {
       message += `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}. `;
