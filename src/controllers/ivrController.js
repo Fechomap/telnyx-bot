@@ -118,14 +118,15 @@ class IVRController {
   }
 
   // 4. Validar y Buscar Expediente
-  async validateExpediente(req, res) {
+async validateExpediente(req, res) {
     try {
       const digits = req.body.Digits || req.query.Digits || '';
       const expediente = digits.replace('#', '').trim();
       
-      if (!expediente || expediente.length < 3) {
+      // Validar que sea numérico primero
+      if (!expediente || expediente.length < 3 || isNaN(expediente)) {
         const invalidSay = XMLBuilder.addSay(
-          "El número de expediente no es válido. Debe tener al menos 3 dígitos.",
+          "El número de expediente no es válido. Debe tener al menos 3 dígitos numéricos.",
           { voice: 'Polly.Mia-Neural' }
         );
         const redirect = XMLBuilder.addRedirect('/solicitar-expediente');

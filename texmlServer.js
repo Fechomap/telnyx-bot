@@ -12,7 +12,6 @@ const ivrRoutes = require('./src/routes/ivrRoutes');
 const redisService = require('./src/services/redisService');
 const config = require('./src/config/texml');
 const monitoring = require('./src/utils/monitoring');
-// const dashboard = require('./src/utils/dashboard');
 
 // Inicializar aplicación Express
 const app = express();
@@ -28,18 +27,20 @@ app.use(express.urlencoded({ extended: true }));
 // Middleware para monitoreo de tiempos de respuesta
 app.use(monitoring.responseTimeMiddleware());
 
-// Middleware para logging detallado
-app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  console.log(`\n🔍 [${timestamp}] Nueva petición TeXML:`);
-  console.log(`   Método: ${req.method}`);
-  console.log(`   URL: ${req.url}`);
-  console.log(`   Body: ${JSON.stringify(req.body, null, 2)}`);
-  console.log(`   Query: ${JSON.stringify(req.query, null, 2)}`);
-  console.log(`   IP: ${req.ip}`);
-  console.log('----------------------------------------');
-  next();
-});
+// Middleware para logging detallado (solo si no estamos en tests)
+if (process.env.NODE_ENV !== 'test') {
+  app.use((req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`\n🔍 [${timestamp}] Nueva petición TeXML:`);
+    console.log(`   Método: ${req.method}`);
+    console.log(`   URL: ${req.url}`);
+    console.log(`   Body: ${JSON.stringify(req.body, null, 2)}`);
+    console.log(`   Query: ${JSON.stringify(req.query, null, 2)}`);
+    console.log(`   IP: ${req.ip}`);
+    console.log('----------------------------------------');
+    next();
+  });
+}
 
 // Health check endpoint mejorado
 app.get('/health', async (req, res) => {
@@ -169,11 +170,6 @@ async function startServer() {
     // Configurar timeout para el servidor
     server.timeout = 30000; // 30 segundos
     
-    // Configurar dashboard si está habilitado
-    if (process.env.DASHBOARD_ENABLED === 'true') {
-      // dashboard.setupDashboard(app);
-    }
-    
     return server;
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);
@@ -181,7 +177,9 @@ async function startServer() {
   }
 }
 
-// Iniciar servidor
-startServer();
+// Iniciar servidor SOLO si no estamos en ambiente de test
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 module.exports = app;
