@@ -3,18 +3,29 @@ const redisService = require('../redisService');
 
 class SessionService {
   async createSession(expediente, datos) {
+    console.log(`🔐 Intentando crear sesión para expediente: ${expediente}`);
+    
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     try {
-      await redisService.set(sessionId, {
+      if (!redisService.isConnected) {
+        throw new Error('Redis no está conectado');
+      }
+      
+      const success = await redisService.set(sessionId, {
         expediente,
         datos,
         createdAt: Date.now()
       });
       
+      if (!success) {
+        throw new Error('No se pudo guardar en Redis');
+      }
+      
+      console.log(`✅ Sesión guardada en Redis: ${sessionId}`);
       return sessionId;
     } catch (error) {
-      console.error(`Error al crear sesión:`, error);
+      console.error(`❌ Error al crear sesión:`, error);
       throw error;
     }
   }

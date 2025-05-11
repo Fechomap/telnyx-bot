@@ -46,25 +46,66 @@ class IVRController {
     try {
       const digits = req.query.Digits || req.body.Digits || '';
       const expediente = digits.replace('#', '').trim();
+      const callSid = req.query.CallSid;
       
       console.log(`📦 Validando expediente: ${expediente}`);
+      console.log(`📞 CallSid: ${callSid}`);
       
       const result = await expedienteService.validateAndSearch(expediente);
       
       if (result.valid && result.datos) {
-        const sessionId = await sessionService.createSession(expediente, result.datos);
-        const responseXML = responseService.buildRedirect(
-          `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
-          'GET'
+        console.log(`✅ Expediente válido, guardando en Redis...`);
+        
+        // Guardar usando CallSid como clave
+        await redisService.set(`call_${callSid}`, {
+          expediente,
+          datos: result.datos,
+          createdAt: Date.now()
+        });
+        
+        console.log(`✅ Datos guardados, generando menú...`);
+        
+        // Mostrar el menú directamente
+        const menuOptions = this.generateMenuOptions(result.datos);
+        
+        const sayIntro = XMLBuilder.addSay(
+          `Expediente ${expediente} encontrado. Seleccione una opción:`,
+          { voice: 'Polly.Mia-Neural' }
         );
+        
+        const sayOptions = XMLBuilder.addSay(
+          menuOptions.text,
+          { voice: 'Polly.Mia-Neural' }
+        );
+        
+        const gatherElement = XMLBuilder.addGather({
+          action: `/procesar-opcion?CallSid=${callSid}`,
+          method: 'POST',
+          input: 'dtmf',
+          numDigits: '1',
+          timeout: '15',
+          validDigits: menuOptions.validDigits,
+          nested: sayOptions
+        });
+        
+        const responseXML = XMLBuilder.buildResponse([
+          sayIntro,
+          gatherElement
+        ]);
+        
+        console.log(`📄 XML generado directamente`);
         res.header('Content-Type', 'application/xml');
         res.send(responseXML);
+        console.log(`✅ Respuesta enviada`);
+        
       } else {
+        console.log(`❌ Expediente inválido o no encontrado`);
         const responseXML = responseService.buildErrorResponse(result.error, expediente);
         res.header('Content-Type', 'application/xml');
         res.send(responseXML);
       }
     } catch (error) {
+      console.error(`❌ Error crítico en validateExpediente:`, error);
       this.handleError(res, error, 'validate-expediente');
     }
   }

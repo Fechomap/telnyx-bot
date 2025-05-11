@@ -13,9 +13,23 @@ class ResponseService {
     }
   }
   
+  // En src/services/ivr/responseService.js
   buildRedirect(url, method = 'GET') {
-    const redirect = XMLBuilder.addRedirect(url, method);
-    return XMLBuilder.buildResponse([redirect]);
+    try {
+      const redirect = XMLBuilder.addRedirect(url, method);
+      const response = XMLBuilder.buildResponse([redirect]);
+      
+      // Validar que el XML se generó correctamente
+      if (!response || response.length === 0) {
+        throw new Error('XML vacío generado');
+      }
+      
+      console.log(`📄 XML de redirección generado: ${response}`);
+      return response;
+    } catch (error) {
+      console.error(`❌ Error al construir redirección:`, error);
+      throw error;
+    }
   }
   
   buildComingSoonResponse() {
