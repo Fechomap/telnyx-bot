@@ -1,4 +1,6 @@
-// src/controllers/ivrController.js - VERSION REFACTORIZADA
+// src/controllers/ivrController.js - VERSION CORREGIDA
+const XMLBuilder = require('../texml/helpers/xmlBuilder');
+const redisService = require('../services/redisService');
 const menuService = require('../services/ivr/menuService');
 const expedienteService = require('../services/ivr/expedienteService');
 const sessionService = require('../services/ivr/sessionService');
@@ -30,7 +32,6 @@ class IVRController {
     }
   }
   
-  // ESTE MÉTODO FALTABA EN LA VERSIÓN REFACTORIZADA
   async requestExpediente(req, res) {
     try {
       console.log('📞 Solicitando número de expediente');
@@ -46,7 +47,7 @@ class IVRController {
     try {
       const digits = req.query.Digits || req.body.Digits || '';
       const expediente = digits.replace('#', '').trim();
-      const callSid = req.query.CallSid;
+      const callSid = req.query.CallSid || req.body.CallSid;
       
       console.log(`📦 Validando expediente: ${expediente}`);
       console.log(`📞 CallSid: ${callSid}`);
@@ -63,9 +64,9 @@ class IVRController {
           createdAt: Date.now()
         });
         
-        console.log(`✅ Datos guardados, generando menú...`);
+        console.log(`✅ Datos guardados, generando menú directamente...`);
         
-        // Mostrar el menú directamente
+        // Generar el menú directamente sin redirección
         const menuOptions = this.generateMenuOptions(result.datos);
         
         const sayIntro = XMLBuilder.addSay(
@@ -79,7 +80,7 @@ class IVRController {
         );
         
         const gatherElement = XMLBuilder.addGather({
-          action: `/procesar-opcion?CallSid=${callSid}`,
+          action: `/procesar-opcion`,
           method: 'POST',
           input: 'dtmf',
           numDigits: '1',
@@ -93,7 +94,8 @@ class IVRController {
           gatherElement
         ]);
         
-        console.log(`📄 XML generado directamente`);
+        console.log(`📄 XML generado directamente (sin redirección)`);
+        console.log(responseXML);
         res.header('Content-Type', 'application/xml');
         res.send(responseXML);
         console.log(`✅ Respuesta enviada`);
@@ -112,16 +114,16 @@ class IVRController {
   
   async showExpedienteMenu(req, res) {
     try {
-      const { sessionId, expediente } = req.query;
+      const callSid = req.query.CallSid || req.body.CallSid;
       
-      console.log(`🎯 showExpedienteMenu - SessionId: ${sessionId}, Expediente: ${expediente}`);
+      console.log(`🎯 showExpedienteMenu - CallSid: ${callSid}`);
       
-      if (!sessionId || !expediente) {
-        console.log(`⚠️ Parámetros faltantes`);
+      if (!callSid) {
+        console.log(`⚠️ CallSid faltante`);
         return this.handleWelcome(req, res);
       }
       
-      const sessionData = await sessionService.getSession(sessionId);
+      const sessionData = await redisService.get(`call_${callSid}`);
       
       if (!sessionData || !sessionData.datos) {
         const responseXML = responseService.buildSessionExpiredResponse();
@@ -129,9 +131,11 @@ class IVRController {
         return res.send(responseXML);
       }
       
+      const { expediente, datos } = sessionData;
+      
       const responseXML = menuService.buildExpedienteMenu(
-        sessionData.datos, 
-        sessionId, 
+        datos, 
+        callSid, 
         expediente
       );
       
@@ -144,39 +148,43 @@ class IVRController {
   
   async processOption(req, res) {
     try {
-      const sessionId = req.query.sessionId;
-      const expediente = req.query.expediente;
+      const callSid = req.query.CallSid || req.body.CallSid;
       const option = req.body.Digits || req.query.Digits;
       
-      console.log(`⚡ Procesando opción: ${option} para expediente: ${expediente}`);
+      console.log(`⚡ Procesando opción: ${option}`);
+      console.log(`📞 CallSid: ${callSid}`);
       
-      if (!sessionId) {
+      if (!callSid) {
+        console.log(`⚠️ CallSid faltante en processOption`);
         return this.handleWelcome(req, res);
       }
       
-      const sessionData = await sessionService.getSession(sessionId);
+      const sessionData = await redisService.get(`call_${callSid}`);
       
       if (!sessionData || !sessionData.datos) {
+        console.log(`⚠️ Sesión no encontrada`);
         return this.handleWelcome(req, res);
       }
+      
+      const { expediente, datos } = sessionData;
       
       let responseXML;
       
       switch(option) {
         case '1':
-          responseXML = menuService.buildCostsMenu(sessionData.datos, sessionId, expediente);
+          responseXML = menuService.buildCostsMenu(datos, callSid, expediente);
           break;
         case '2':
-          responseXML = menuService.buildUnitMenu(sessionData.datos, sessionId, expediente);
+          responseXML = menuService.buildUnitMenu(datos, callSid, expediente);
           break;
         case '3':
-          responseXML = menuService.buildLocationMenu(sessionData.datos, sessionId, expediente);
+          responseXML = menuService.buildLocationMenu(datos, callSid, expediente);
           break;
         case '4':
-          responseXML = menuService.buildTimesMenu(sessionData.datos, sessionId, expediente);
+          responseXML = menuService.buildTimesMenu(datos, callSid, expediente);
           break;
         case '9':
-          await sessionService.deleteSession(sessionId);
+          await redisService.delete(`call_${callSid}`);
           responseXML = responseService.buildNewQueryResponse();
           break;
         case '0':
@@ -184,8 +192,8 @@ class IVRController {
           break;
         default:
           responseXML = menuService.buildExpedienteMenu(
-            sessionData.datos, 
-            sessionId, 
+            datos, 
+            callSid, 
             expediente
           );
       }
@@ -195,6 +203,41 @@ class IVRController {
     } catch (error) {
       this.handleError(res, error, 'process-option');
     }
+  }
+  
+  // Método auxiliar para generar opciones del menú
+  generateMenuOptions(datos) {
+    let menuOptions = [];
+    let validDigits = '';
+    
+    if (datos.costos && Object.keys(datos.costos).length > 0) {
+      menuOptions.push("Presione 1 para consultar costos");
+      validDigits += '1';
+    }
+    
+    if (datos.unidad && Object.keys(datos.unidad).length > 0) {
+      menuOptions.push("Presione 2 para información de la unidad");
+      validDigits += '2';
+    }
+    
+    if (datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
+      menuOptions.push("Presione 3 para ubicación y tiempos");
+      validDigits += '3';
+    }
+    
+    if (datos.tiempos && Object.keys(datos.tiempos).length > 0) {
+      menuOptions.push("Presione 4 para tiempos del servicio");
+      validDigits += '4';
+    }
+    
+    menuOptions.push("Presione 9 para consultar otro expediente");
+    menuOptions.push("Presione 0 para hablar con un asesor");
+    validDigits += '90';
+    
+    return {
+      text: menuOptions.join('. '),
+      validDigits
+    };
   }
   
   handleError(res, error, context) {
