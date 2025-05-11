@@ -133,6 +133,9 @@ class IVRController {
   }
 
   // 4. Validar y Buscar Expediente
+  // Modificación específica para el método validateExpediente
+  // Alrededor de la línea 134 en tu archivo src/controllers/ivrController.js
+
   async validateExpediente(req, res) {
     try {
       const digits = req.body.Digits || req.query.Digits || '';
@@ -146,7 +149,7 @@ class IVRController {
           "El número de expediente no es válido. Debe tener al menos 3 dígitos numéricos.",
           { voice: 'Polly.Mia-Neural' }
         );
-        const redirect = XMLBuilder.addRedirect('/solicitar-expediente');
+        const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
         
         const responseXML = XMLBuilder.buildResponse([invalidSay, redirect]);
         res.header('Content-Type', 'application/xml');
@@ -155,65 +158,112 @@ class IVRController {
       
       monitoring.trackExpediente('query', expediente);
       
-      // Buscar expediente
-      const startTime = monitoring.startDataQuery();
-      const datosExpediente = await consultaUnificada(expediente);
-      const queryTime = startTime(!!datosExpediente);
+      // Buscar expediente con manejo de errores mejorado
+      let datosExpediente;
+      try {
+        const startTime = monitoring.startDataQuery();
+        datosExpediente = await consultaUnificada(expediente);
+        const queryTime = startTime(!!datosExpediente);
+        console.log(`⏱️ Tiempo de consulta: ${queryTime}ms`);
+      } catch (error) {
+        console.error(`❌ Error al consultar expediente:`, error);
+        
+        const errorSay = XMLBuilder.addSay(
+          "Ocurrió un error al consultar el expediente. Por favor, intente nuevamente.",
+          { voice: 'Polly.Mia-Neural' }
+        );
+        const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
+        
+        const responseXML = XMLBuilder.buildResponse([errorSay, redirect]);
+        res.header('Content-Type', 'application/xml');
+        return res.send(responseXML);
+      }
       
       if (datosExpediente) {
+        console.log(`✅ Expediente encontrado: ${expediente}`);
         monitoring.trackExpediente('found', expediente);
         
         // Crear sesión única
         const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`🔑 Sesión creada: ${sessionId}`);
         
-        // Guardar en Redis
-        await redisService.set(sessionId, {
-          expediente,
-          datos: datosExpediente,
-          createdAt: Date.now()
-        });
+        // Guardar en Redis con manejo de errores
+        try {
+          await redisService.set(sessionId, {
+            expediente,
+            datos: datosExpediente,
+            createdAt: Date.now()
+          });
+          console.log(`💾 Datos guardados en Redis para sesión: ${sessionId}`);
+        } catch (error) {
+          console.error(`❌ Error al guardar en Redis:`, error);
+          // Continuar sin Redis si falla
+        }
         
-        // Mostrar menú directamente en lugar de redirect
-        req.query.sessionId = sessionId;
-        req.query.expediente = expediente;
-        return this.showExpedienteMenu(req, res);
+        // Redirigir al menú del expediente - CORRECCIÓN CRÍTICA
+        const redirect = XMLBuilder.addRedirect(
+          `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
+          'GET'
+        );
+        
+        const responseXML = XMLBuilder.buildResponse([redirect]);
+        console.log(`📤 Redirigiendo a menú de expediente`);
+        res.header('Content-Type', 'application/xml');
+        return res.send(responseXML);
+        
       } else {
+        console.log(`❌ Expediente NO encontrado: ${expediente}`);
         monitoring.trackExpediente('notFound', expediente);
         
         const notFoundSay = XMLBuilder.addSay(
           `El número de expediente ${expediente} no fue localizado. Por favor, verifíquelo e intente nuevamente.`,
           { voice: 'Polly.Mia-Neural' }
         );
-        const redirect = XMLBuilder.addRedirect('/solicitar-expediente');
+        const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
         
         const responseXML = XMLBuilder.buildResponse([notFoundSay, redirect]);
         res.header('Content-Type', 'application/xml');
-        res.send(responseXML);
+        return res.send(responseXML);
       }
     } catch (error) {
+      console.error(`❌ Error general en validateExpediente:`, error);
       this.handleError(res, error, 'validate-expediente');
     }
   }
 
   // 5. Mostrar Menú del Expediente
+  // Modificación específica para el método showExpedienteMenu
+  // Alrededor de la línea 187 en tu archivo src/controllers/ivrController.js
+
   async showExpedienteMenu(req, res) {
     try {
       const sessionId = req.query.sessionId;
       const expediente = req.query.expediente;
       
-      if (!sessionId) {
+      console.log(`🎯 showExpedienteMenu - SessionId: ${sessionId}, Expediente: ${expediente}`);
+      
+      if (!sessionId || !expediente) {
+        console.log(`⚠️ Parámetros faltantes - SessionId: ${sessionId}, Expediente: ${expediente}`);
         return this.handleWelcome(req, res);
       }
       
       // Obtener datos de Redis
-      const sessionData = await redisService.get(sessionId);
+      let sessionData;
+      try {
+        sessionData = await redisService.get(sessionId);
+        console.log(`🔍 Datos de sesión obtenidos:`, sessionData ? 'Sí' : 'No');
+      } catch (error) {
+        console.error(`❌ Error al obtener datos de Redis:`, error);
+        // Intentar continuar sin Redis
+      }
       
       if (!sessionData || !sessionData.datos) {
+        console.log(`⚠️ Sesión expirada o sin datos`);
         const expiredSay = XMLBuilder.addSay(
           "La sesión ha expirado. Por favor, inicie una nueva consulta.",
           { voice: 'Polly.Mia-Neural' }
         );
-        const redirect = XMLBuilder.addRedirect('/welcome');
+        const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
         
         const responseXML = XMLBuilder.buildResponse([expiredSay, redirect]);
         res.header('Content-Type', 'application/xml');
@@ -221,6 +271,7 @@ class IVRController {
       }
       
       const datos = sessionData.datos;
+      console.log(`📊 Datos del expediente disponibles`);
       
       // Construir menú dinámico
       let menuOptions = [];
@@ -250,6 +301,9 @@ class IVRController {
       menuOptions.push("Presione 0 para hablar con un asesor");
       validDigits += '90';
       
+      console.log(`📋 Opciones de menú generadas: ${menuOptions.length}`);
+      console.log(`🔢 Dígitos válidos: ${validDigits}`);
+      
       const introSay = XMLBuilder.addSay(
         `Expediente ${expediente} encontrado. Seleccione una opción:`,
         { voice: 'Polly.Mia-Neural' }
@@ -262,15 +316,18 @@ class IVRController {
       
       const gatherElement = XMLBuilder.addGather({
         action: `/procesar-opcion?sessionId=${sessionId}&expediente=${expediente}`,
-        method: 'GET',  // Cambiado a GET
+        method: 'GET',
         input: 'dtmf',
         numDigits: '1',
-        timeout: '10',
+        timeout: '15',
         validDigits: validDigits,
         nested: menuSay
       });
       
-      const redirect = XMLBuilder.addRedirect(`/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`);
+      const redirect = XMLBuilder.addRedirect(
+        `/menu-expediente?sessionId=${sessionId}&expediente=${expediente}`,
+        'GET'
+      );
       
       const responseXML = XMLBuilder.buildResponse([
         introSay,
@@ -278,9 +335,12 @@ class IVRController {
         redirect
       ]);
       
+      console.log(`📤 Enviando XML del menú (length: ${responseXML.length})`);
       res.header('Content-Type', 'application/xml');
-      res.send(responseXML);
+      res.status(200).send(responseXML);
+      console.log(`✅ Respuesta enviada completamente`);
     } catch (error) {
+      console.error(`❌ Error en showExpedienteMenu:`, error);
       this.handleError(res, error, 'expediente-menu');
     }
   }
@@ -525,7 +585,7 @@ class IVRController {
       { voice: 'Polly.Mia-Neural' }
     );
     
-    const redirect = XMLBuilder.addRedirect('/welcome');
+    const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
     
     const responseXML = XMLBuilder.buildResponse([errorSay, redirect]);
     res.header('Content-Type', 'application/xml');
