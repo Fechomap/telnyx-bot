@@ -52,7 +52,11 @@ router.post('/procesar-grabacion', option2Controller.procesarGrabacion.bind(opti
 router.get('/recording-status', option2Controller.statusGrabacion.bind(option2Controller));
 router.post('/recording-status', option2Controller.statusGrabacion.bind(option2Controller));
 
-router.get('/esperar-procesamiento', option2Controller.esperarProcesamiento.bind(option2Controller));
+router.get('/esperar-procesamiento', (req, res, next) => {
+  console.log('📍 GET /esperar-procesamiento called');
+  console.log('Query params:', req.query);
+  option2Controller.esperarProcesamiento(req, res, next);
+});
 router.post('/esperar-procesamiento', option2Controller.esperarProcesamiento.bind(option2Controller));
 
 router.get('/finalizar-cotizacion', option2Controller.finalizeQuotation.bind(option2Controller));

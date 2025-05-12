@@ -98,22 +98,29 @@ class OpenAIAssistantService {
   
   extractJsonData(response) {
     try {
-      // Buscar patrón de JSON en la respuesta
-      const jsonPattern = /{[\s\S]*}/;
-      const match = response.match(jsonPattern);
+      // Buscar patrón de JSON en la respuesta (mejorado para mayor robustez)
+      const jsonPattern = /{[\s\S]*?}/g;
+      const matches = response.match(jsonPattern);
       
-      if (!match) {
+      if (!matches || matches.length === 0) {
         console.log(`⚠️ No se encontró JSON en la respuesta`);
         return null;
       }
       
-      const jsonStr = match[0];
-      console.log(`🔍 JSON encontrado en la respuesta: ${jsonStr}`);
+      // Intentar cada coincidencia hasta encontrar una válida
+      for (const match of matches) {
+        try {
+          const jsonData = JSON.parse(match);
+          console.log(`🔍 JSON encontrado en la respuesta: ${match}`);
+          return jsonData;
+        } catch (parseError) {
+          console.log(`⚠️ Error al parsear JSON potencial: ${match}`);
+          // Continuar con la siguiente coincidencia
+        }
+      }
       
-      // Parsear el JSON
-      const jsonData = JSON.parse(jsonStr);
-      
-      return jsonData;
+      console.log(`⚠️ No se encontró un JSON válido en las coincidencias`);
+      return null;
     } catch (error) {
       console.error(`❌ Error al extraer JSON:`, error);
       return null;

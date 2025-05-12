@@ -81,20 +81,7 @@ class Option2Controller {
         return this.handleSessionExpired(res);
       }
       
-      // Mensaje mientras procesamos
-      const sayProcessing = XMLBuilder.addSay(
-        "Procesando información.",
-        { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
-      );
-      
-      // Redirigir a ruta de espera
-      const redirect = XMLBuilder.addRedirect(`/esperar-procesamiento?callSid=${callSid}&recordingUrl=${encodeURIComponent(recordingUrl)}`, 'GET');
-      
-      const responseXML = XMLBuilder.buildResponse([
-        sayProcessing,
-        redirect
-      ]);
-      
+      // -------- CAMBIO IMPORTANTE: En lugar de redirigir, procesamos aquí mismo --------
       // Guardar en Redis que estamos procesando
       await redisService.set(`quotation_${callSid}`, {
         ...sessionData,
@@ -104,11 +91,35 @@ class Option2Controller {
         recordingSid
       });
       
-      res.header('Content-Type', 'application/xml');
-      res.send(responseXML);
-      
-      // Iniciar procesamiento asíncrono
+      // Iniciar procesamiento de audio (pero no esperar a que termine)
       this.procesarAudioAsincrono(callSid, recordingUrl, sessionData);
+      
+      // Enviar directamente una respuesta con pausa y mensaje de espera
+      const elements = [];
+      
+      // Mensaje de procesamiento
+      elements.push(XMLBuilder.addSay(
+        "Procesando su información, por favor espere un momento.",
+        { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
+      ));
+      
+      // Agregar una pausa para dar tiempo al procesamiento (8 segundos)
+      for (let i = 0; i < 4; i++) {
+        elements.push(XMLBuilder.addSay(
+          "...",
+          { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
+        ));
+      }
+      
+      // Redirigir a verificar resultado (simple y sin parámetros en URL)
+      elements.push(XMLBuilder.addRedirect(`/esperar-procesamiento?callSid=${callSid}`, 'GET'));
+      
+      const responseXML = XMLBuilder.buildResponse(elements);
+      
+      res.header('Content-Type', 'application/xml');
+      console.log(`📤 Enviando respuesta TeXML a Telnyx:`);
+      console.log(responseXML.substring(0, 500) + '...');
+      res.send(responseXML);
       
     } catch (error) {
       console.error(`❌ Error en procesarGrabacion:`, error);
@@ -126,7 +137,7 @@ class Option2Controller {
       
       if (!transcripcion || transcripcion.trim() === '') {
         console.log(`⚠️ Transcripción vacía`);
-        await this.guardarResultadoProcesamiento(callSid, sessionData, null, 'error_transcripcion_vacia');
+        await this.guardarResultadoProcesamiento(callSid, sessionData, null, 'error_transcripcion_vacia', null);
         return;
       }
       
@@ -140,16 +151,16 @@ class Option2Controller {
       // Extraer JSON si existe
       const jsonData = openaiAssistantService.extractJsonData(assistantResponse);
       
-      // Guardar resultado en Redis
-      await this.guardarResultadoProcesamiento(callSid, sessionData, jsonData, assistantResponse);
+      // Guardar resultado en Redis (pasando la transcripción)
+      await this.guardarResultadoProcesamiento(callSid, sessionData, jsonData, assistantResponse, transcripcion);
       
     } catch (error) {
       console.error(`❌ Error en procesarAudioAsincrono:`, error);
-      await this.guardarResultadoProcesamiento(callSid, sessionData, null, 'error_procesamiento');
+      await this.guardarResultadoProcesamiento(callSid, sessionData, null, 'error_procesamiento', null);
     }
   }
   
-  async guardarResultadoProcesamiento(callSid, sessionData, jsonData, respuesta) {
+  async guardarResultadoProcesamiento(callSid, sessionData, jsonData, respuesta, transcripcion) {
     try {
       // Recuperar datos actualizados (por si cambiaron)
       const currentSessionData = await redisService.get(`quotation_${callSid}`);
@@ -158,25 +169,43 @@ class Option2Controller {
       let nextStage = sessionData.stage;
       let nextPrompt = '';
       
-      // Determinar siguiente paso según etapa y si hay JSON
-      if (jsonData && jsonData.origen && jsonData.destino && jsonData.vehiculo) {
-        // JSON completo - listo para cotización
+      // Si no hay JSON pero hay transcripción, intentar extraer datos
+      if (!jsonData && transcripcion) {
+        jsonData = this.extraerDatosDeTranscripcion(transcripcion, sessionData.stage);
+      }
+      
+      // Almacenar datos extraídos en la sesión actual 
+      const datosActualizados = { ...currentSessionData.jsonData };
+      
+      if (jsonData) {
+        // Agregar los datos nuevos a los existentes
+        if (jsonData.origen) datosActualizados.origen = jsonData.origen;
+        if (jsonData.destino) datosActualizados.destino = jsonData.destino;
+        if (jsonData.vehiculo) datosActualizados.vehiculo = jsonData.vehiculo;
+        
+        console.log(`💾 Datos actualizados: ${JSON.stringify(datosActualizados)}`);
+      }
+      
+      // Determinar siguiente paso según etapa y datos disponibles
+      if (datosActualizados.origen && datosActualizados.destino && datosActualizados.vehiculo) {
+        // Datos completos - listo para cotización
         nextStage = 'completed';
-      } else if (jsonData && jsonData.origen && sessionData.stage === 'origen') {
+        nextPrompt = "Generando cotización con sus datos.";
+      } else if (datosActualizados.origen && sessionData.stage === 'origen') {
         // Tenemos origen, pedir destino
         nextStage = 'destino';
         nextPrompt = "Indique las coordenadas de destino.";
-      } else if (jsonData && jsonData.origen && jsonData.destino && sessionData.stage === 'destino') {
+      } else if (datosActualizados.origen && datosActualizados.destino && sessionData.stage === 'destino') {
         // Tenemos origen y destino, pedir vehículo
         nextStage = 'vehiculo';
         nextPrompt = "Indique marca, submarca y año del vehículo.";
       } else {
-        // No tenemos datos válidos, repetir etapa actual
+        // Repetir etapa actual si faltan datos
         nextPrompt = sessionData.stage === 'origen' 
-          ? "Indique nuevamente las coordenadas de origen."
+          ? "No pude entender. Indique nuevamente las coordenadas de origen."
           : sessionData.stage === 'destino'
-            ? "Indique nuevamente las coordenadas de destino."
-            : "Indique nuevamente marca, submarca y año del vehículo.";
+            ? "No pude entender. Indique nuevamente las coordenadas de destino."
+            : "No pude entender. Indique marca, submarca y año del vehículo.";
       }
       
       // Guardar estado actualizado
@@ -184,11 +213,13 @@ class Option2Controller {
         ...currentSessionData,
         processingRecording: false,
         processingComplete: true,
-        jsonData: jsonData || currentSessionData.jsonData,
+        jsonData: datosActualizados,
         lastResponse: respuesta,
         stage: nextStage,
         nextPrompt
       });
+      
+      console.log(`🔄 Estado de sesión actualizado: ${nextStage}, Prompt: "${nextPrompt}"`);
       
     } catch (error) {
       console.error(`❌ Error al guardar resultados:`, error);
@@ -197,8 +228,10 @@ class Option2Controller {
   
   async esperarProcesamiento(req, res) {
     try {
-      const callSid = req.query.callSid || req.body.callSid;
-      
+      const callSid = req.query.callSid || req.body.callSid || req.query.CallSid || req.body.CallSid;
+      console.log(`📥 Recibida petición en esperarProcesamiento:`);
+      console.log(`CallSid: ${callSid}`);
+      console.log(`Headers:`, req.headers);
       console.log(`⏳ Esperando procesamiento para CallSid: ${callSid}`);
       
       // Recuperar sesión
@@ -209,14 +242,14 @@ class Option2Controller {
         return this.handleSessionExpired(res);
       }
       
-      // Si aún no ha terminado el procesamiento, redirigir a esta misma ruta con un retraso
+      // Si aún no ha terminado el procesamiento, esperar un poco más
       if (sessionData.processingRecording && !sessionData.processingComplete) {
         const wait = XMLBuilder.addSay(
-          "Procesando información.",
+          "Continuamos procesando, un momento por favor.",
           { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
         );
         
-        // Redirigir a la misma ruta después de 2 segundos
+        // ---- CAMBIO AQUÍ: URL simplificada y sin parámetros en la query string ----
         const redirect = XMLBuilder.addRedirect(`/esperar-procesamiento?callSid=${callSid}`, 'GET');
         
         const responseXML = XMLBuilder.buildResponse([wait, redirect]);
@@ -224,6 +257,8 @@ class Option2Controller {
         res.header('Content-Type', 'application/xml');
         return res.send(responseXML);
       }
+    
+    // El resto del código sigue igual...
       
       // Procesamiento terminado, verificar resultado
       if (!sessionData.jsonData && sessionData.stage !== 'completed') {
@@ -365,6 +400,57 @@ class Option2Controller {
   createConfirmationMessage(jsonData) {
     // Mensaje conciso para pruebas
     return `Datos confirmados. Generando cotización.`;
+  }
+
+  /**
+   * Extrae coordenadas o datos de vehículo de la transcripción cuando no hay JSON.
+   */
+  extraerDatosDeTranscripcion(transcripcion, stage) {
+    try {
+      // Expresión regular para detectar coordenadas (latitud,longitud)
+      const coordPattern = /(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/;
+      
+      // Expresión regular para detectar información de vehículo
+      const vehiclePattern = /(\w+)\s+(\w+)(?:\s+(\d{4}))?/;
+      
+      let jsonData = {};
+      
+      if (stage === 'origen' || stage === 'destino') {
+        // Buscar coordenadas
+        const coordMatch = transcripcion.match(coordPattern);
+        if (coordMatch) {
+          const coords = `${coordMatch[1]},${coordMatch[2]}`;
+          
+          if (stage === 'origen') {
+            jsonData.origen = coords;
+          } else if (stage === 'destino') {
+            jsonData.destino = coords;
+          }
+          
+          console.log(`✅ Extraídas coordenadas desde transcripción: ${coords}`);
+          return jsonData;
+        }
+      } else if (stage === 'vehiculo') {
+        // Buscar información del vehículo
+        const vehicleMatch = transcripcion.match(vehiclePattern);
+        if (vehicleMatch) {
+          jsonData.vehiculo = {
+            marca: vehicleMatch[1],
+            submarca: vehicleMatch[2],
+            modelo: vehicleMatch[3] || new Date().getFullYear().toString()
+          };
+          
+          console.log(`✅ Extraída información del vehículo: ${JSON.stringify(jsonData.vehiculo)}`);
+          return jsonData;
+        }
+      }
+      
+      console.log(`⚠️ No se pudo extraer datos de la transcripción: "${transcripcion}"`);
+      return null;
+    } catch (error) {
+      console.error(`❌ Error al extraer datos desde la transcripción:`, error);
+      return null;
+    }
   }
   
   handleSessionExpired(res) {
