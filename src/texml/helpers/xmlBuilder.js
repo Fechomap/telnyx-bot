@@ -78,6 +78,25 @@ class XMLBuilder {
   }
 
   /**
+   * Agrega elemento Record para grabación de audio
+   * @param {Object} options - Opciones de configuración
+   * @returns {string} Elemento Record en XML
+   */
+  static addRecord(options = {}) {
+    const action = options.action || '/procesar-grabacion';
+    const method = options.method || 'POST';
+    const timeout = options.timeout || '5';
+    const maxLength = options.maxLength || '15';
+    const playBeep = options.playBeep || 'true';
+    const finishOnKey = options.finishOnKey || '#';
+    const recordingStatusCallback = options.recordingStatusCallback || '/recording-status';
+    
+    let recordAttrs = `action="${action}" method="${method}" timeout="${timeout}" maxLength="${maxLength}" playBeep="${playBeep}" finishOnKey="${finishOnKey}" recordingStatusCallback="${recordingStatusCallback}"`;
+    
+    return `  <Record ${recordAttrs}></Record>\n`;
+  }
+
+  /**
    * Agrega elemento para AI Assistant optimizado para conversación
    * @param {Object} options - Opciones de configuración
    * @returns {string} Elemento AI Assistant en XML

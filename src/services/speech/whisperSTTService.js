@@ -84,9 +84,33 @@ class WhisperSTTService {
     try {
       console.log(`🎤 Descargando audio desde URL: ${audioUrl}`);
       
-      // Descargar el archivo
-      const response = await axios.get(audioUrl, { responseType: 'arraybuffer' });
-      const audioBuffer = Buffer.from(response.data);
+      // Añadir timeout y reintentos
+      const maxRetries = 3;
+      let retries = 0;
+      let audioBuffer;
+      
+      while (retries < maxRetries) {
+        try {
+          // Descargar el archivo con timeout
+          const response = await axios.get(audioUrl, { 
+            responseType: 'arraybuffer',
+            timeout: 10000 // 10 segundos timeout
+          });
+          audioBuffer = Buffer.from(response.data);
+          break; // Si llega aquí, la descarga fue exitosa
+        } catch (downloadError) {
+          retries++;
+          console.error(`Error en descarga (intento ${retries}):`, downloadError.message);
+          if (retries >= maxRetries) throw downloadError;
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1s entre reintentos
+        }
+      }
+      
+      if (!audioBuffer || audioBuffer.length === 0) {
+        throw new Error('Audio descargado está vacío');
+      }
+      
+      console.log(`✅ Audio descargado: ${audioBuffer.length} bytes`);
       
       // Transcribir el buffer
       return await this.transcribeAudio(audioBuffer);

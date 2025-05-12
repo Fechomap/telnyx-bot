@@ -19,29 +19,29 @@ class Option2Controller {
       // Guardar en Redis
       await redisService.set(`quotation_${callSid}`, {
         threadId: threadId,
-        stage: 'initialized',
+        stage: 'origen', // Etapa inicial para seguimiento
         createdAt: Date.now()
       }, 1800); // 30 minutos TTL
       
-      // Mensaje inicial solicitando coordenadas de origen
-      const say = XMLBuilder.addSay(
-        "Bienvenido al servicio de cotización. Por favor, indique las coordenadas de origen en formato latitud coma longitud.",
+      // Mensaje inicial conciso para pruebas
+      const promptOrigen = "Indique las coordenadas de origen.";
+      
+      const say = XMLBuilder.addSay(promptOrigen, 
         { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
       );
       
-      // Configurar captura de voz
-      const voiceGather = XMLBuilder.addGather({
-        action: "/procesar-audio",
-        method: "GET", // MODIFICADO: Cambiar a GET para que coincida con la solicitud de Telnyx
-        input: "speech",
-        language: "es-MX",
-        speechTimeout: "auto",
-        timeout: "20",
-        nested: say
+      // Configurar grabación
+      const record = XMLBuilder.addRecord({
+        action: "/procesar-grabacion",
+        method: "POST",
+        maxLength: "15", // 15 segundos máximo
+        timeout: "5",    // 5 segundos de silencio para terminar
+        playBeep: "true",
+        recordingStatusCallback: "/recording-status"
       });
       
       const timeoutSay = XMLBuilder.addSay(
-        "No se detectó ninguna respuesta. Volviendo al menú principal.",
+        "No se detectó grabación. Volviendo al menú principal.",
         { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
       );
       
@@ -49,7 +49,8 @@ class Option2Controller {
       
       // Enviar respuesta
       const responseXML = XMLBuilder.buildResponse([
-        voiceGather,
+        say,
+        record,
         timeoutSay,
         redirect
       ]);
@@ -63,14 +64,14 @@ class Option2Controller {
     }
   }
   
-  async processAudio(req, res) {
+  async procesarGrabacion(req, res) {
     try {
       const callSid = req.query.CallSid || req.body.CallSid;
-      // MODIFICADO: Obtener SpeechResult tanto de query como de body
-      const speechResult = req.query.SpeechResult || req.body.SpeechResult || '';
+      const recordingUrl = req.body.RecordingUrl || req.query.RecordingUrl;
+      const recordingSid = req.body.RecordingSid || req.query.RecordingSid;
       
-      console.log(`🎤 Procesando audio para CallSid: ${callSid}`);
-      console.log(`🔤 Texto reconocido por Telnyx: ${speechResult}`);
+      console.log(`🎙️ Grabación recibida: ${recordingSid}`);
+      console.log(`🔗 URL de grabación: ${recordingUrl}`);
       
       // Recuperar sesión
       const sessionData = await redisService.get(`quotation_${callSid}`);
@@ -80,34 +81,178 @@ class Option2Controller {
         return this.handleSessionExpired(res);
       }
       
-      // AÑADIDO: Si no hay texto reconocido, solicitar repetición
-      if (!speechResult || speechResult.trim() === '') {
-        console.log(`⚠️ No se detectó texto en la respuesta`);
-        
-        const say = XMLBuilder.addSay(
-          "No pude entender lo que dijo. Por favor, intente nuevamente pronunciando claramente las coordenadas.",
+      // Mensaje mientras procesamos
+      const sayProcessing = XMLBuilder.addSay(
+        "Procesando información.",
+        { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
+      );
+      
+      // Redirigir a ruta de espera
+      const redirect = XMLBuilder.addRedirect(`/esperar-procesamiento?callSid=${callSid}&recordingUrl=${encodeURIComponent(recordingUrl)}`, 'GET');
+      
+      const responseXML = XMLBuilder.buildResponse([
+        sayProcessing,
+        redirect
+      ]);
+      
+      // Guardar en Redis que estamos procesando
+      await redisService.set(`quotation_${callSid}`, {
+        ...sessionData,
+        processingRecording: true,
+        processingComplete: false,
+        recordingUrl,
+        recordingSid
+      });
+      
+      res.header('Content-Type', 'application/xml');
+      res.send(responseXML);
+      
+      // Iniciar procesamiento asíncrono
+      this.procesarAudioAsincrono(callSid, recordingUrl, sessionData);
+      
+    } catch (error) {
+      console.error(`❌ Error en procesarGrabacion:`, error);
+      this.handleError(res, error, 'quotation-process-recording');
+    }
+  }
+  
+  async procesarAudioAsincrono(callSid, recordingUrl, sessionData) {
+    try {
+      console.log(`🔄 Procesando audio asíncronamente: ${recordingUrl}`);
+      
+      // Transcribir con Whisper
+      const transcripcion = await whisperSTTService.transcribeAudioFromUrl(recordingUrl);
+      console.log(`📝 Transcripción: "${transcripcion}"`);
+      
+      if (!transcripcion || transcripcion.trim() === '') {
+        console.log(`⚠️ Transcripción vacía`);
+        await this.guardarResultadoProcesamiento(callSid, sessionData, null, 'error_transcripcion_vacia');
+        return;
+      }
+      
+      // Enviar al asistente
+      const threadId = sessionData.threadId;
+      const runId = await openaiAssistantService.sendMessage(threadId, transcripcion);
+      
+      // Esperar respuesta
+      const assistantResponse = await openaiAssistantService.getResponse(threadId, runId);
+      
+      // Extraer JSON si existe
+      const jsonData = openaiAssistantService.extractJsonData(assistantResponse);
+      
+      // Guardar resultado en Redis
+      await this.guardarResultadoProcesamiento(callSid, sessionData, jsonData, assistantResponse);
+      
+    } catch (error) {
+      console.error(`❌ Error en procesarAudioAsincrono:`, error);
+      await this.guardarResultadoProcesamiento(callSid, sessionData, null, 'error_procesamiento');
+    }
+  }
+  
+  async guardarResultadoProcesamiento(callSid, sessionData, jsonData, respuesta) {
+    try {
+      // Recuperar datos actualizados (por si cambiaron)
+      const currentSessionData = await redisService.get(`quotation_${callSid}`);
+      if (!currentSessionData) return;
+      
+      let nextStage = sessionData.stage;
+      let nextPrompt = '';
+      
+      // Determinar siguiente paso según etapa y si hay JSON
+      if (jsonData && jsonData.origen && jsonData.destino && jsonData.vehiculo) {
+        // JSON completo - listo para cotización
+        nextStage = 'completed';
+      } else if (jsonData && jsonData.origen && sessionData.stage === 'origen') {
+        // Tenemos origen, pedir destino
+        nextStage = 'destino';
+        nextPrompt = "Indique las coordenadas de destino.";
+      } else if (jsonData && jsonData.origen && jsonData.destino && sessionData.stage === 'destino') {
+        // Tenemos origen y destino, pedir vehículo
+        nextStage = 'vehiculo';
+        nextPrompt = "Indique marca, submarca y año del vehículo.";
+      } else {
+        // No tenemos datos válidos, repetir etapa actual
+        nextPrompt = sessionData.stage === 'origen' 
+          ? "Indique nuevamente las coordenadas de origen."
+          : sessionData.stage === 'destino'
+            ? "Indique nuevamente las coordenadas de destino."
+            : "Indique nuevamente marca, submarca y año del vehículo.";
+      }
+      
+      // Guardar estado actualizado
+      await redisService.set(`quotation_${callSid}`, {
+        ...currentSessionData,
+        processingRecording: false,
+        processingComplete: true,
+        jsonData: jsonData || currentSessionData.jsonData,
+        lastResponse: respuesta,
+        stage: nextStage,
+        nextPrompt
+      });
+      
+    } catch (error) {
+      console.error(`❌ Error al guardar resultados:`, error);
+    }
+  }
+  
+  async esperarProcesamiento(req, res) {
+    try {
+      const callSid = req.query.callSid || req.body.callSid;
+      
+      console.log(`⏳ Esperando procesamiento para CallSid: ${callSid}`);
+      
+      // Recuperar sesión
+      const sessionData = await redisService.get(`quotation_${callSid}`);
+      
+      if (!sessionData) {
+        console.log(`⚠️ Sesión no encontrada`);
+        return this.handleSessionExpired(res);
+      }
+      
+      // Si aún no ha terminado el procesamiento, redirigir a esta misma ruta con un retraso
+      if (sessionData.processingRecording && !sessionData.processingComplete) {
+        const wait = XMLBuilder.addSay(
+          "Procesando información.",
           { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
         );
         
-        const voiceGather = XMLBuilder.addGather({
-          action: "/procesar-audio",
-          method: "GET",
-          input: "speech",
-          language: "es-MX",
-          speechTimeout: "auto",
-          timeout: "20",
-          nested: say
+        // Redirigir a la misma ruta después de 2 segundos
+        const redirect = XMLBuilder.addRedirect(`/esperar-procesamiento?callSid=${callSid}`, 'GET');
+        
+        const responseXML = XMLBuilder.buildResponse([wait, redirect]);
+        
+        res.header('Content-Type', 'application/xml');
+        return res.send(responseXML);
+      }
+      
+      // Procesamiento terminado, verificar resultado
+      if (!sessionData.jsonData && sessionData.stage !== 'completed') {
+        // No hay datos válidos, repetir grabación
+        const sayError = XMLBuilder.addSay(
+          sessionData.nextPrompt || "No pude entender. Intente nuevamente.",
+          { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
+        );
+        
+        // Configurar grabación nuevamente
+        const record = XMLBuilder.addRecord({
+          action: "/procesar-grabacion",
+          method: "POST",
+          maxLength: "15",
+          timeout: "5",
+          playBeep: "true",
+          recordingStatusCallback: "/recording-status"
         });
         
         const timeoutSay = XMLBuilder.addSay(
-          "No se detectó ninguna respuesta. Volviendo al menú principal.",
+          "No se detectó grabación. Volviendo al menú principal.",
           { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
         );
         
         const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
         
         const responseXML = XMLBuilder.buildResponse([
-          voiceGather,
+          sayError,
+          record,
           timeoutSay,
           redirect
         ]);
@@ -116,105 +261,90 @@ class Option2Controller {
         return res.send(responseXML);
       }
       
-      // Enviar texto al asistente de OpenAI
-      const threadId = sessionData.threadId;
-      const runId = await openaiAssistantService.sendMessage(threadId, speechResult);
-      
-      // Esperar respuesta del asistente
-      const assistantResponse = await openaiAssistantService.getResponse(threadId, runId);
-      
-      // Extraer JSON si existe
-      const jsonData = openaiAssistantService.extractJsonData(assistantResponse);
-      
-      let nextElements = [];
-      
-      if (jsonData) {
-        // Si hay JSON, significa que se completó la recolección de datos
-        console.log(`✅ Datos completos recibidos para cotización`);
+      // Verificar etapa actual y dirigir al siguiente paso
+      if (sessionData.stage === 'completed') {
+        // Todos los datos recopilados, generar cotización
+        return this.finalizeQuotation(req, res);
+      } else if (sessionData.stage === 'destino' || sessionData.stage === 'vehiculo') {
+        // Confirmar avance y continuar con la siguiente etapa
+        const sayConfirm = XMLBuilder.addSay(
+          sessionData.nextPrompt,
+          { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
+        );
         
-        // Actualizar la sesión con los datos
-        await redisService.set(`quotation_${callSid}`, {
-          ...sessionData,
-          quotationData: jsonData,
-          stage: 'completed'
+        // Configurar grabación para siguiente etapa
+        const record = XMLBuilder.addRecord({
+          action: "/procesar-grabacion",
+          method: "POST",
+          maxLength: "15",
+          timeout: "5",
+          playBeep: "true",
+          recordingStatusCallback: "/recording-status"
         });
         
-        // Crear mensaje de confirmación
-        const confirmationMessage = this.createConfirmationMessage(jsonData);
-        const say = XMLBuilder.addSay(
-          confirmationMessage,
-          { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
-        );
+        const responseXML = XMLBuilder.buildResponse([sayConfirm, record]);
         
-        const redirect = XMLBuilder.addRedirect('/finalizar-cotizacion', 'GET');
-        
-        nextElements = [say, redirect];
-      } else {
-        // Continuar con el diálogo
-        const say = XMLBuilder.addSay(
-          assistantResponse,
-          { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
-        );
-        
-        // Configurar captura de voz para siguiente paso
-        const voiceGather = XMLBuilder.addGather({
-          action: "/procesar-audio",
-          method: "GET", // MODIFICADO: Cambiar a GET para que coincida con la solicitud de Telnyx
-          input: "speech",
-          language: "es-MX",
-          speechTimeout: "auto",
-          timeout: "20",
-          nested: say
-        });
-        
-        const timeoutSay = XMLBuilder.addSay(
-          "No se detectó ninguna respuesta. Volviendo al menú principal.",
-          { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
-        );
-        
-        const redirect = XMLBuilder.addRedirect('/welcome', 'GET');
-        
-        nextElements = [voiceGather, timeoutSay, redirect];
+        res.header('Content-Type', 'application/xml');
+        return res.send(responseXML);
       }
       
-      // Enviar respuesta
-      const responseXML = XMLBuilder.buildResponse(nextElements);
+    } catch (error) {
+      console.error(`❌ Error en esperarProcesamiento:`, error);
+      this.handleError(res, error, 'quotation-wait-processing');
+    }
+  }
+  
+  async statusGrabacion(req, res) {
+    try {
+      const recordingSid = req.body.RecordingSid || req.query.RecordingSid;
+      const recordingStatus = req.body.RecordingStatus || req.query.RecordingStatus;
+      const recordingUrl = req.body.RecordingUrl || req.query.RecordingUrl;
       
-      res.header('Content-Type', 'application/xml');
-      res.send(responseXML);
+      console.log(`📊 Status de grabación: ${recordingSid} - ${recordingStatus}`);
+      console.log(`🔗 URL final de grabación: ${recordingUrl}`);
+      
+      // Simplemente respondemos 200 OK ya que esto es solo una notificación
+      res.status(200).send('OK');
       
     } catch (error) {
-      console.error(`❌ Error en processAudio:`, error);
-      this.handleError(res, error, 'quotation-process');
+      console.error(`❌ Error en statusGrabacion:`, error);
+      res.status(200).send('Error processed');
     }
+  }
+  
+  async processAudio(req, res) {
+    // Mantenemos este método para compatibilidad con código existente 
+    // Este método ya no se usará con el nuevo flujo de grabación
+    console.log(`⚠️ Método processAudio llamado pero no utilizado en el nuevo flujo`);
+    return this.handleError(res, new Error('Método no soportado'), 'audio-process-legacy');
   }
   
   async finalizeQuotation(req, res) {
     try {
-      const callSid = req.query.CallSid || req.body.CallSid;
+      const callSid = req.query.CallSid || req.body.CallSid || req.query.callSid || req.body.callSid;
       
       console.log(`🏁 Finalizando cotización para CallSid: ${callSid}`);
       
       // Recuperar sesión
       const sessionData = await redisService.get(`quotation_${callSid}`);
       
-      if (!sessionData || !sessionData.quotationData) {
+      if (!sessionData || !sessionData.jsonData) {
         console.log(`⚠️ Datos de cotización no encontrados para CallSid: ${callSid}`);
         return this.handleSessionExpired(res);
       }
       
       // Generar cotización
-      const quotationData = sessionData.quotationData;
+      const quotationData = sessionData.jsonData;
       const quotationResult = await quotationService.generateQuotation(quotationData);
       
       // Limpiar recursos
-      await openaiAssistantService.closeThread(sessionData.threadId);
+      if (sessionData.threadId) {
+        await openaiAssistantService.closeThread(sessionData.threadId);
+      }
       
-      // Construir mensaje de respuesta
+      // Construir mensaje de respuesta (conciso para pruebas)
       const say = XMLBuilder.addSay(
-        `Su cotización ha sido procesada. El costo estimado es de ${quotationResult.cost} pesos. ` +
-        `La distancia es de ${quotationResult.distance} kilómetros. ` +
-        `¡Gracias por utilizar nuestro servicio! Volviendo al menú principal.`,
+        `Costo: ${quotationResult.cost} pesos. Distancia: ${quotationResult.distance} kilómetros.`,
         { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
       );
       
@@ -233,15 +363,13 @@ class Option2Controller {
   }
   
   createConfirmationMessage(jsonData) {
-    return `Confirmando los datos recibidos. Origen: ${jsonData.origen}. ` +
-           `Destino: ${jsonData.destino}. ` +
-           `Vehículo: ${jsonData.vehiculo.marca} ${jsonData.vehiculo.submarca} modelo ${jsonData.vehiculo.modelo}. ` +
-           `Generando cotización, por favor espere.`;
+    // Mensaje conciso para pruebas
+    return `Datos confirmados. Generando cotización.`;
   }
   
   handleSessionExpired(res) {
     const say = XMLBuilder.addSay(
-      "La sesión ha expirado. Por favor, inicie nuevamente la cotización.",
+      "La sesión ha expirado. Volviendo al menú principal.",
       { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
     );
     
@@ -261,7 +389,7 @@ class Option2Controller {
     });
     
     const say = XMLBuilder.addSay(
-      "Ha ocurrido un error. Por favor, intente nuevamente más tarde.",
+      "Error en el sistema. Volviendo al menú principal.",
       { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
     );
     

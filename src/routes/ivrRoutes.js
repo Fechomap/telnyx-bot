@@ -20,7 +20,7 @@ router.post('/solicitar-expediente', ivrController.requestExpediente.bind(ivrCon
 router.get('/validar-expediente', ivrController.validateExpediente.bind(ivrController));
 router.post('/validar-expediente', ivrController.validateExpediente.bind(ivrController));
 
-// Menú del expediente - CORREGIDO: asegurar que acepta GET y POST
+// Menú del expediente
 router.get('/menu-expediente', (req, res, next) => {
   console.log('📍 GET /menu-expediente called');
   console.log('Query params:', req.query);
@@ -41,9 +41,19 @@ router.post('/procesar-opcion', ivrController.processOption.bind(ivrController))
 router.get('/iniciar-cotizacion', option2Controller.initializeQuotation.bind(option2Controller));
 router.post('/iniciar-cotizacion', option2Controller.initializeQuotation.bind(option2Controller));
 
-// MODIFICADO: Añadir soporte para GET y POST en procesar-audio
+// Mantener compatibilidad con el método anterior
 router.get('/procesar-audio', option2Controller.processAudio.bind(option2Controller));
 router.post('/procesar-audio', option2Controller.processAudio.bind(option2Controller));
+
+// Nuevas rutas para grabación
+router.get('/procesar-grabacion', option2Controller.procesarGrabacion.bind(option2Controller));
+router.post('/procesar-grabacion', option2Controller.procesarGrabacion.bind(option2Controller));
+
+router.get('/recording-status', option2Controller.statusGrabacion.bind(option2Controller));
+router.post('/recording-status', option2Controller.statusGrabacion.bind(option2Controller));
+
+router.get('/esperar-procesamiento', option2Controller.esperarProcesamiento.bind(option2Controller));
+router.post('/esperar-procesamiento', option2Controller.esperarProcesamiento.bind(option2Controller));
 
 router.get('/finalizar-cotizacion', option2Controller.finalizeQuotation.bind(option2Controller));
 router.post('/finalizar-cotizacion', option2Controller.finalizeQuotation.bind(option2Controller));
