@@ -7,7 +7,8 @@ class ResponseService {
       case '1':
         return this.buildRedirect('/solicitar-expediente', 'GET');
       case '2':
-        return this.buildComingSoonResponse();
+        // Cambiar para redirigir a la Opción 2
+        return this.buildRedirect('/iniciar-cotizacion', 'GET');
       default:
         return this.buildInvalidOptionResponse();
     }

@@ -1,7 +1,8 @@
-// src/routes/ivrRoutes.js - ACTUALIZACIÓN CRÍTICA
+// src/routes/ivrRoutes.js
 const express = require('express');
 const router = express.Router();
 const ivrController = require('../controllers/ivrController');
+const option2Controller = require('../controllers/option2Controller');
 
 // Menú principal
 router.get('/welcome', ivrController.handleWelcome.bind(ivrController));
@@ -35,6 +36,17 @@ router.post('/menu-expediente', (req, res, next) => {
 // Procesar opción del menú
 router.get('/procesar-opcion', ivrController.processOption.bind(ivrController));
 router.post('/procesar-opcion', ivrController.processOption.bind(ivrController));
+
+// Rutas para Opción 2 - Cotización
+router.get('/iniciar-cotizacion', option2Controller.initializeQuotation.bind(option2Controller));
+router.post('/iniciar-cotizacion', option2Controller.initializeQuotation.bind(option2Controller));
+
+// MODIFICADO: Añadir soporte para GET y POST en procesar-audio
+router.get('/procesar-audio', option2Controller.processAudio.bind(option2Controller));
+router.post('/procesar-audio', option2Controller.processAudio.bind(option2Controller));
+
+router.get('/finalizar-cotizacion', option2Controller.finalizeQuotation.bind(option2Controller));
+router.post('/finalizar-cotizacion', option2Controller.finalizeQuotation.bind(option2Controller));
 
 // Middleware de debugging
 router.use((req, res, next) => {

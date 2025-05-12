@@ -6,6 +6,7 @@ const expedienteService = require('../services/ivr/expedienteService');
 const sessionService = require('../services/ivr/sessionService');
 const responseService = require('../services/ivr/responseService');
 const monitoring = require('../utils/monitoring');
+const option2Controller = require('./option2Controller');
 
 class IVRController {
   async handleWelcome(req, res) {
@@ -23,6 +24,12 @@ class IVRController {
     try {
       const digit = req.query.Digits || req.body.Digits;
       console.log(`🔢 Dígito recibido: ${digit}`);
+      
+      // MODIFICADO: Manejar caso para opción 2
+      if (digit === '2') {
+        console.log('🚘 Redirigiendo a iniciar-cotizacion');
+        return option2Controller.initializeQuotation(req, res);
+      }
       
       const responseXML = await responseService.processMenuSelection(digit);
       res.header('Content-Type', 'application/xml');
