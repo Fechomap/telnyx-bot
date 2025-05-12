@@ -141,9 +141,18 @@ class Option2Controller {
         return;
       }
       
+      // Construir mensaje con la etapa actual para el asistente
+      const etapaActual = sessionData.stage || 'origen';
+      const mensajeConEtapa = `
+  Etapa actual: "${etapaActual}"
+  Transcripción del usuario: "${transcripcion}"
+      `;
+      
+      console.log(`📤 Enviando mensaje con etapa "${etapaActual}" al asistente`);
+      
       // Enviar al asistente
       const threadId = sessionData.threadId;
-      const runId = await openaiAssistantService.sendMessage(threadId, transcripcion);
+      const runId = await openaiAssistantService.sendMessage(threadId, mensajeConEtapa);
       
       // Esperar respuesta
       const assistantResponse = await openaiAssistantService.getResponse(threadId, runId);
@@ -410,28 +419,51 @@ class Option2Controller {
       // Expresión regular para detectar coordenadas (latitud,longitud)
       const coordPattern = /(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)/;
       
+      // Expresión regular alternativa para "menos" en lugar de signo negativo
+      const coordPatternText = /(\d+\.?\d*)\s*,?\s*menos\s*(\d+\.?\d*)/;
+      
       // Expresión regular para detectar información de vehículo
       const vehiclePattern = /(\w+)\s+(\w+)(?:\s+(\d{4}))?/;
       
       let jsonData = {};
       
       if (stage === 'origen' || stage === 'destino') {
-        // Buscar coordenadas
-        const coordMatch = transcripcion.match(coordPattern);
+        // Intentar primero con el formato estándar
+        let coordMatch = transcripcion.match(coordPattern);
+        
+        // Si no funciona, intentar con el formato de texto "menos"
+        if (!coordMatch) {
+          coordMatch = transcripcion.match(coordPatternText);
+          // Si encuentra el patrón con "menos", ajustar para añadir signo negativo
+          if (coordMatch) {
+            coordMatch[2] = `-${coordMatch[2]}`; 
+          }
+        }
+        
         if (coordMatch) {
-          const coords = `${coordMatch[1]},${coordMatch[2]}`;
+          // Asegurarnos que la longitud sea negativa para México
+          let lat = parseFloat(coordMatch[1]);
+          let lng = parseFloat(coordMatch[2]);
           
+          // Si la longitud es positiva y parece ser de México, hacerla negativa
+          if (lng > 0 && lng > 85 && lng < 120) {
+            lng = -lng;
+          }
+          
+          const coords = `${lat},${lng}`;
+          
+          // Asignar al campo correcto según la etapa
           if (stage === 'origen') {
             jsonData.origen = coords;
           } else if (stage === 'destino') {
             jsonData.destino = coords;
           }
           
-          console.log(`✅ Extraídas coordenadas desde transcripción: ${coords}`);
+          console.log(`✅ Extraídas coordenadas para ${stage} desde transcripción: ${coords}`);
           return jsonData;
         }
       } else if (stage === 'vehiculo') {
-        // Buscar información del vehículo
+        // Procesamiento de vehículo
         const vehicleMatch = transcripcion.match(vehiclePattern);
         if (vehicleMatch) {
           jsonData.vehiculo = {
@@ -445,7 +477,7 @@ class Option2Controller {
         }
       }
       
-      console.log(`⚠️ No se pudo extraer datos de la transcripción: "${transcripcion}"`);
+      console.log(`⚠️ No se pudo extraer datos para ${stage} de la transcripción: "${transcripcion}"`);
       return null;
     } catch (error) {
       console.error(`❌ Error al extraer datos desde la transcripción:`, error);
