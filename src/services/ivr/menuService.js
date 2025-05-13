@@ -2,6 +2,8 @@
 const XMLBuilder = require('../../texml/helpers/xmlBuilder');
 const config = require('../../config/texml');
 const SessionService = require('./sessionService');
+const { hexToColorName } = require('../../utils/colorConverter');
+const { formatearFechaParaIVR } = require('../../utils/dateFormatter');
 
 class MenuService {
   buildWelcomeMenu() {
@@ -264,11 +266,15 @@ class MenuService {
     let message = `los tiempos de ${expediente} son. `;
     
     if (tiempos.tc && tiempos.tc !== null) {
-      message += `contacto: ${tiempos.tc}. `;
+      // Formatear tiempo de contacto
+      const tiempoContactoFormateado = formatearFechaParaIVR(tiempos.tc);
+      message += `Contacto el ${tiempoContactoFormateado}. `;
     }
     
     if (tiempos.tt && tiempos.tt !== null) {
-      message += `término: ${tiempos.tt}. `;
+      // Formatear tiempo de término
+      const tiempoTerminoFormateado = formatearFechaParaIVR(tiempos.tt);
+      message += `Término el ${tiempoTerminoFormateado}. `;
     }
     
     if ((!tiempos.tc || tiempos.tc === null) && (!tiempos.tt || tiempos.tt === null)) {
@@ -319,7 +325,9 @@ class MenuService {
         message += `Tipo de Grúa: ${unidad.tipoGrua}. `;
       }
       if (unidad.color) {
-        message += `Color: ${unidad.color}. `;
+        // Convertir el código hexadecimal a nombre de color legible
+        const colorNombre = hexToColorName(unidad.color);
+        message += `Color: ${colorNombre}. `;
       }
       if (unidad.unidadOperativa) {
         message += `Número Económico: ${unidad.unidadOperativa}. `;
