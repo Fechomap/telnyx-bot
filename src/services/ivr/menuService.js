@@ -332,7 +332,7 @@ class MenuService {
         if (unidad.unidadOperativa) {
           // Extraer solo el número al inicio de la cadena
           const numeroEconomico = unidad.unidadOperativa.match(/^\d+/) ? unidad.unidadOperativa.match(/^\d+/)[0] : unidad.unidadOperativa;
-          message += `Número Económico: ${numeroEconomico}. `;
+          message += `Número Económico: ${numeroEconomico},  `;
         }
         if (unidad.placas || unidad.placa) {
           message += `Placas: ${unidad.placas || unidad.placa}. `;
