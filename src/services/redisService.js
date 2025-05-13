@@ -7,6 +7,48 @@ class RedisService {
     this.client = null;
     this.isConnected = false;
     this.defaultTTL = 1800; // 30 minutos
+    this.inProduction = this.detectProductionEnvironment();
+  }
+
+  /**
+   * Detecta si estamos en un entorno de producción (Railway)
+   * @returns {boolean} true si estamos en producción, false si estamos en desarrollo
+   */
+  detectProductionEnvironment() {
+    // Railway establece NODE_ENV y otras variables específicas
+    const isRailway = process.env.RAILWAY_ENVIRONMENT || 
+                      process.env.RAILWAY_SERVICE_ID || 
+                      process.env.PORT === '8080' ||
+                      process.env.BASE_URL?.includes('railway.app');
+    
+    if (isRailway) {
+      console.log('🚂 Detectado entorno Railway');
+      return true;
+    }
+    
+    if (process.env.NODE_ENV === 'production') {
+      console.log('🏭 Detectado entorno de producción');
+      return true;
+    }
+    
+    console.log('🧪 Detectado entorno de desarrollo');
+    return false;
+  }
+
+  /**
+   * Determina si una URL es un placeholder de Railway
+   * @param {string} url La URL a comprobar
+   * @returns {boolean} true si es un placeholder de Railway
+   */
+  isRailwayPlaceholder(url) {
+    if (!url) return false;
+    
+    // Detecta varios formatos de placeholder de Railway
+    return url.includes('${{') || 
+           url.includes('${Redis') || 
+           url.includes('$REDIS') ||
+           url.match(/\$\{\{.*\}\}/) !== null ||
+           url.match(/\$\{.*\}/) !== null;
   }
 
   /**
@@ -15,60 +57,133 @@ class RedisService {
    */
   determineRedisUrl() {
     // Obtener REDIS_URL del entorno
-    const configuredUrl = process.env.REDIS_URL;
+    const configuredUrl = process.env.REDIS_URL || '';
     
-    // Comprueba si es una URL de Railway (contiene ${{ Redis. }})
-    if (configuredUrl && configuredUrl.includes('${{')) {
-      console.log('⚠️ Detectada URL de Railway en entorno local, usando Redis local');
+    console.log(`🔍 REDIS_URL configurada: ${this.maskUrl(configuredUrl)}`);
+    
+    // CASO 1: Comprobar si es un placeholder de Railway
+    if (this.isRailwayPlaceholder(configuredUrl)) {
+      console.log('⚠️ Detectado placeholder de Railway: ' + configuredUrl);
+      
+      // En Railway, esto no debería ocurrir (debería haberse sustituido)
+      if (this.inProduction) {
+        console.error('❌ ERROR: Placeholder de Railway no sustituido en producción');
+        console.log('⚙️ Buscando URL alternativa en otras variables...');
+        
+        // Intentar buscar otras variables que Railway podría haber configurado
+        const possibleUrls = [
+          process.env.REDIS_PRIVATE_URL,
+          process.env.RAILWAY_REDIS_URL,
+          process.env.REDIS_CONNECTION_URL,
+          // Formato especial: buscar sin usar placeholder
+          process.env['Redis.REDIS_URL']  // Intenta acceder directamente sin placeholder
+        ];
+        
+        for (const url of possibleUrls) {
+          if (url && !this.isRailwayPlaceholder(url)) {
+            console.log('✅ Encontrada URL alternativa válida');
+            return url;
+          }
+        }
+        
+        console.warn('⚠️ No se encontró URL alternativa, usando fallback a localhost (probablemente fallará)');
+      }
+      
+      // En local, usar Redis local
+      if (!this.inProduction) {
+        console.log('✅ Desarrollo local con placeholder de Railway, usando Redis local');
+      }
+      
       return 'redis://localhost:6379';
     }
     
-    // Si la URL está configurada y parece válida, usarla
+    // CASO 2: URL explícita y válida, usarla
     if (configuredUrl && (
       configuredUrl.startsWith('redis://') || 
       configuredUrl.startsWith('rediss://') ||
       configuredUrl.includes('@')
     )) {
-      console.log('✅ Usando REDIS_URL configurada del entorno');
+      console.log(`✅ Usando URL de Redis configurada: ${this.maskUrl(configuredUrl)}`);
       return configuredUrl;
     }
     
-    // Por defecto usar Redis local
-    console.log('ℹ️ REDIS_URL no configurada, usando Redis local');
-    return 'redis://localhost:6379';
+    // CASO 3: Fallback a local según el entorno
+    if (this.inProduction) {
+      console.warn('⚠️ No se encontró URL válida de Redis en Railway');
+      return 'redis://localhost:6379'; // Fallback, aunque probablemente fallará en Railway
+    } else {
+      console.log('🖥️ Usando Redis local por defecto');
+      return 'redis://localhost:6379';
+    }
+  }
+
+  /**
+   * Enmascara credenciales en URL para mostrarla en logs
+   * @param {string} url La URL a enmascarar
+   * @returns {string} URL con credenciales enmascaradas
+   */
+  maskUrl(url) {
+    if (!url) return 'undefined';
+    if (this.isRailwayPlaceholder(url)) return url; // No enmascarar placeholders
+    
+    return url.includes('@') 
+      ? url.replace(/\/\/([^:]+):[^@]+@/, '//***:***@') 
+      : url;
   }
 
   async connect() {
     try {
       // Determinar la URL apropiada
       const redisUrl = this.determineRedisUrl();
-      console.log(`🔄 Intentando conectar a Redis: ${redisUrl}`);
+      
+      console.log(`🔄 Intentando conectar a Redis: ${this.maskUrl(redisUrl)}`);
       
       this.client = redis.createClient({
         url: redisUrl,
         socket: {
           connectTimeout: 5000,
           reconnectStrategy: (retries) => {
-            if (retries > 3) return false;
+            if (retries > 3) {
+              console.log(`❌ No se pudo conectar a Redis después de ${retries} intentos`);
+              return false;
+            }
             return Math.min(retries * 100, 3000);
           }
         }
       });
 
       this.client.on('error', (err) => {
-        console.error('Redis Client Error:', err);
+        if (this.isConnected) {
+          console.error('Redis Client Error:', err);
+        }
         this.isConnected = false;
       });
 
       this.client.on('connect', () => {
-        console.log('✅ Conectado a Redis');
+        console.log(`✅ Conectado a Redis: ${this.maskUrl(redisUrl)}`);
         this.isConnected = true;
       });
 
-      await this.client.connect();
-      return true;
+      try {
+        await this.client.connect();
+        return true;
+      } catch (error) {
+        console.warn(`⚠️ Error al conectar a Redis: ${error.message}`);
+        
+        // En producción, esto es crítico si Redis es requerido
+        if (this.inProduction && process.env.REDIS_REQUIRED === 'true') {
+          console.error('❌ ERROR CRÍTICO: Redis es requerido pero no disponible');
+          if (process.env.NODE_ENV === 'production') {
+            // Solo terminamos el proceso si estamos realmente en producción
+            process.exit(1);
+          }
+        }
+        
+        console.log('📝 Continuando con funcionalidad limitada (sin caché)');
+        return false;
+      }
     } catch (error) {
-      console.error('Error conectando a Redis:', error);
+      console.error('Error general conectando a Redis:', error);
       return false;
     }
   }
@@ -122,8 +237,13 @@ class RedisService {
   }
 
   async disconnect() {
-    if (this.client) {
-      await this.client.quit();
+    if (this.client && this.isConnected) {
+      try {
+        await this.client.quit();
+        console.log('👋 Desconectado de Redis');
+      } catch (error) {
+        console.error('Error al desconectar de Redis:', error);
+      }
       this.isConnected = false;
     }
   }

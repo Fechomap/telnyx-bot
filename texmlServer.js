@@ -144,14 +144,31 @@ async function gracefulShutdown() {
 }
 
 // Función para iniciar el servidor
+// Fragmento mejorado para texmlServer.js
+
+// Esta función debe reemplazar la función existente startServer()
 async function startServer() {
   try {
-    // Conectar a Redis primero
-    const redisConnected = await redisService.connect();
-    
-    if (!redisConnected) {
-      console.warn('⚠️  Redis no está disponible. El sistema funcionará con limitaciones.');
+    console.log('📊 Información del entorno:');
+    console.log(`- NODE_ENV: ${process.env.NODE_ENV || 'no definido'}`);
+    console.log(`- PORT: ${process.env.PORT || '3000 (default)'}`);
+    console.log(`- REDIS_URL: ${process.env.REDIS_URL ? 'definido' : 'no definido'}`);
+    if (process.env.REDIS_URL && process.env.REDIS_URL.includes('${{')) {
+      console.log(`  ⚠️ Advertencia: REDIS_URL contiene un placeholder: ${process.env.REDIS_URL}`);
     }
+    console.log(`- BASE_URL: ${process.env.BASE_URL || 'no definido'}`);
+    
+    // Variables específicas de Railway
+    const railwayVars = Object.keys(process.env).filter(key => 
+      key.startsWith('RAILWAY_') || key === 'NIXPACKS_TYPE'
+    );
+    if (railwayVars.length > 0) {
+      console.log('- Variables Railway detectadas:', railwayVars.join(', '));
+    }
+    
+    // Intentar conectar a Redis primero
+    console.log('\n⏳ Intentando conectar a Redis...');
+    const redisConnected = await redisService.connect();
     
     // Iniciar servidor HTTP
     const PORT = process.env.PORT || 3000;
@@ -164,13 +181,21 @@ async function startServer() {
 - Base URL: ${config.service.baseUrl || 'No configurada'}
 - Caller ID: ${config.service.callerId || 'No configurado'}
 - Connection ID: ${config.service.connectionId || 'No configurado'}
-- Redis: ${redisConnected ? '✅ Conectado' : '❌ Desconectado'}
+- Redis: ${redisConnected ? '✅ Conectado' : '❌ Desconectado (modo limitado)'}
 - TTS Voice: ${config.tts.voice}
 - Transferencia a agentes: ${config.transfer.enabled ? '✅' : '❌'}
 - Monitoreo: ✅
 - Dashboard: ${process.env.DASHBOARD_ENABLED === 'true' ? '✅' : '❌'}
 ========================================
       `);
+      
+      if (!redisConnected) {
+        console.log('\n⚠️ ADVERTENCIA: Redis no está disponible. Algunas funciones estarán limitadas:');
+        console.log('- No habrá caché de expedientes');
+        console.log('- No se podrán mantener sesiones entre solicitudes');
+        console.log('- Las consultas serán más lentas (sin caching)');
+        console.log('El sistema funcionará, pero con capacidades reducidas.\n');
+      }
     });
     
     // Configurar timeout para el servidor
@@ -178,8 +203,21 @@ async function startServer() {
     
     return server;
   } catch (error) {
-    console.error('Error al iniciar el servidor:', error);
-    process.exit(1);
+    console.error('❌ Error crítico al iniciar el servidor:', error);
+    
+    // Imprimir información adicional para diagnóstico
+    console.error('\n📊 Información de diagnóstico:');
+    console.error(`- NODE_ENV: ${process.env.NODE_ENV || 'no definido'}`);
+    console.error(`- PORT: ${process.env.PORT || '3000 (default)'}`);
+    console.error(`- REDIS_URL: ${redisService.maskUrl(process.env.REDIS_URL || 'no definido')}`);
+    
+    // Solo salir si estamos en producción
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ Terminando proceso en entorno de producción debido a error crítico');
+      process.exit(1);
+    }
+    
+    throw error;
   }
 }
 
