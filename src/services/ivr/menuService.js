@@ -314,40 +314,42 @@ class MenuService {
   }
 
   buildUnidadOperativaMenu(datos, callSid, expediente) {
-    const unidad = datos.unidad;
-    let message = `Datos de la unidad operativa del expediente ${expediente}. `;
+      const unidad = datos.unidad;
+      let message = `Datos de la unidad operativa del expediente ${expediente}. `;
 
-    if (unidad) {
-      if (unidad.operador) {
-        message += `Operador: ${unidad.operador}. `;
-      }
-      if (unidad.tipoGrua) {
-        message += `Tipo de Grúa: ${unidad.tipoGrua}. `;
-      }
-      if (unidad.color) {
-        // Convertir el código hexadecimal a nombre de color legible
-        const colorNombre = hexToColorName(unidad.color);
-        message += `Color: ${colorNombre}. `;
-      }
-      if (unidad.unidadOperativa) {
-        message += `Número Económico: ${unidad.unidadOperativa}. `;
-      }
-      if (unidad.placas || unidad.placa) {
-        message += `Placas: ${unidad.placas || unidad.placa}. `;
-      }
-      if (Object.keys(unidad).length === 0 || 
-          (!unidad.operador && !unidad.tipoGrua && !unidad.color && !unidad.unidadOperativa && !(unidad.placas || unidad.placa))) {
+      if (unidad) {
+        if (unidad.operador) {
+          message += `Operador: ${unidad.operador}. `;
+        }
+        if (unidad.tipoGrua) {
+          message += `Tipo de Grúa: ${unidad.tipoGrua}. `;
+        }
+        if (unidad.color) {
+          // Convertir el código hexadecimal a nombre de color legible
+          const colorNombre = hexToColorName(unidad.color);
+          message += `Color: ${colorNombre}. `;
+        }
+        if (unidad.unidadOperativa) {
+          // Extraer solo el número al inicio de la cadena
+          const numeroEconomico = unidad.unidadOperativa.match(/^\d+/) ? unidad.unidadOperativa.match(/^\d+/)[0] : unidad.unidadOperativa;
+          message += `Número Económico: ${numeroEconomico}. `;
+        }
+        if (unidad.placas || unidad.placa) {
+          message += `Placas: ${unidad.placas || unidad.placa}. `;
+        }
+        if (Object.keys(unidad).length === 0 || 
+            (!unidad.operador && !unidad.tipoGrua && !unidad.color && !unidad.unidadOperativa && !(unidad.placas || unidad.placa))) {
+          message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
+        }
+      } else {
         message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
       }
-    } else {
-      message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
-    }
-    
-    const sayUnidad = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-    const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
-    
-    return XMLBuilder.buildResponse([sayUnidad, pause, redirect]);
+      
+      const sayUnidad = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+      const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+      const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
+      
+      return XMLBuilder.buildResponse([sayUnidad, pause, redirect]);
   }
 }
 
