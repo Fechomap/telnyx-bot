@@ -9,10 +9,43 @@ class RedisService {
     this.defaultTTL = 1800; // 30 minutos
   }
 
+  /**
+   * Determina la URL de Redis a utilizar
+   * @returns {string} URL válida para conectar a Redis
+   */
+  determineRedisUrl() {
+    // Obtener REDIS_URL del entorno
+    const configuredUrl = process.env.REDIS_URL;
+    
+    // Comprueba si es una URL de Railway (contiene ${{ Redis. }})
+    if (configuredUrl && configuredUrl.includes('${{')) {
+      console.log('⚠️ Detectada URL de Railway en entorno local, usando Redis local');
+      return 'redis://localhost:6379';
+    }
+    
+    // Si la URL está configurada y parece válida, usarla
+    if (configuredUrl && (
+      configuredUrl.startsWith('redis://') || 
+      configuredUrl.startsWith('rediss://') ||
+      configuredUrl.includes('@')
+    )) {
+      console.log('✅ Usando REDIS_URL configurada del entorno');
+      return configuredUrl;
+    }
+    
+    // Por defecto usar Redis local
+    console.log('ℹ️ REDIS_URL no configurada, usando Redis local');
+    return 'redis://localhost:6379';
+  }
+
   async connect() {
     try {
+      // Determinar la URL apropiada
+      const redisUrl = this.determineRedisUrl();
+      console.log(`🔄 Intentando conectar a Redis: ${redisUrl}`);
+      
       this.client = redis.createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        url: redisUrl,
         socket: {
           connectTimeout: 5000,
           reconnectStrategy: (retries) => {
