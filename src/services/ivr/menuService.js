@@ -92,8 +92,8 @@ class MenuService {
         break;
         
       case 'En Proceso':
-        options.showLocation = true;
-        options.showTimes = false;
+        options.showLocation = false;
+        options.showTimes = true;
         break;
         
       case 'Servicio Muerto':
