@@ -52,7 +52,7 @@ class ResponseService {
   }
   
   buildErrorResponse(errorType, expediente = '') {
-    let message = '';
+    let message = `El número de expediente ${this.formatearExpediente(expediente)} no fue localizado...`;
     
     switch(errorType) {
       case 'invalid_format':

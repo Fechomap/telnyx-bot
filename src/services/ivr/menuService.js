@@ -6,6 +6,10 @@ const { hexToColorName } = require('../../utils/colorConverter');
 const { formatearFechaParaIVR } = require('../../utils/dateFormatter');
 
 class MenuService {
+  // Función para formatear el expediente en grupos de dos dígitos
+  formatearExpediente(expediente) {
+    return expediente.match(/.{1,2}/g).join(' ');
+  }
   buildWelcomeMenu() {
     const sayElement = XMLBuilder.addSay(
       "Hola! Seguimiento a expediente presione 1, Cotizar un servicio presione 2.",
@@ -196,7 +200,7 @@ class MenuService {
   
   buildGeneralInfoMenu(datos, callSid, expediente) {
     const datosGenerales = datos.datosGenerales;
-    let message = `Información general de ${expediente}. `;
+    let message = `Información general de ${this.formatearExpediente(expediente)}. `;
     
     if (datosGenerales.nombre) {
       message += `Cliente: ${datosGenerales.nombre}. `;
@@ -227,7 +231,7 @@ class MenuService {
   
   buildCostsMenu(datos, callSid, expediente) {
     const costos = datos.costos;
-    let message = `el desglose de ${expediente}, es. `;
+    let message = `el desglose de ${this.formatearExpediente(expediente)}, es. `;
     
     if (costos.costo) {
       message += `El costo total es ${costos.costo}. `;
@@ -263,7 +267,7 @@ class MenuService {
   // MODIFICADO: Manejo mejorado para tiempos que podrían ser null
   buildTimesMenu(datos, callSid, expediente) {
     const tiempos = datos.tiempos;
-    let message = `los tiempos de ${expediente} son. `;
+    let message = `los tiempos de ${this.formatearExpediente(expediente)} son. `;
     
     if (tiempos.tc && tiempos.tc !== null) {
       // Formatear tiempo de contacto
@@ -291,7 +295,7 @@ class MenuService {
   // MODIFICADO: Manejo mejorado para ubicación que podría ser null
   buildLocationMenu(datos, callSid, expediente) {
     const ubicacion = datos.ubicacion;
-    let message = `los datos de ${expediente} son. `;
+    let message = `los datos de ${this.formatearExpediente(expediente)} son. `;
     
     if (ubicacion.tiempoRestante && ubicacion.tiempoRestante !== null) {
       message += `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}. `;
@@ -315,7 +319,7 @@ class MenuService {
 
   buildUnidadOperativaMenu(datos, callSid, expediente) {
       const unidad = datos.unidad;
-      let message = `Datos de la unidad operativa del expediente ${expediente}. `;
+      let message = `Datos de la unidad operativa del expediente ${this.formatearExpediente(expediente)}. `;
 
       if (unidad) {
         if (unidad.operador) {
