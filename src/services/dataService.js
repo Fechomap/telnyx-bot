@@ -182,9 +182,3 @@ module.exports = {
   clearCache,
   getCacheStats
 };
-
-module.exports = {
-  consultaUnificada,
-  clearCache,
-  getCacheStats
-};
