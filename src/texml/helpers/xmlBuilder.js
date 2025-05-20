@@ -88,10 +88,13 @@ class XMLBuilder {
     const timeout = options.timeout || '5';
     const maxLength = options.maxLength || '15';
     const playBeep = options.playBeep || 'true';
-    const finishOnKey = options.finishOnKey || '#';
+    // Solo establecer finishOnKey si se proporciona en las opciones
+    const finishOnKey = options.finishOnKey;
     const recordingStatusCallback = options.recordingStatusCallback || '/recording-status';
-    
-    let recordAttrs = `action="${action}" method="${method}" timeout="${timeout}" maxLength="${maxLength}" playBeep="${playBeep}" finishOnKey="${finishOnKey}" recordingStatusCallback="${recordingStatusCallback}"`;
+
+    let recordAttrs = `action="${action}" method="${method}" timeout="${timeout}" maxLength="${maxLength}" playBeep="${playBeep}"`;
+    if (finishOnKey) recordAttrs += ` finishOnKey="${finishOnKey}"`;
+    recordAttrs += ` recordingStatusCallback="${recordingStatusCallback}"`;
     
     return `  <Record ${recordAttrs}></Record>\n`;
   }
