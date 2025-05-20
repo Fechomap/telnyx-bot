@@ -37,7 +37,7 @@ class Option2Controller {
         maxLength: "15", // 15 segundos máximo
         timeout: "5",    // 5 segundos de silencio para terminar
         playBeep: "true",
-        finishOnKey: '', // Evitar terminar con la tecla '#'
+        finishOnKey: '',
         recordingStatusCallback: "/recording-status"
       });
       
@@ -285,7 +285,7 @@ class Option2Controller {
           maxLength: "15",
           timeout: "5",
           playBeep: "true",
-          finishOnKey: '', // Evitar terminar con la tecla '#'
+          finishOnKey: '',
           recordingStatusCallback: "/recording-status"
         });
         
@@ -325,7 +325,7 @@ class Option2Controller {
           maxLength: "15",
           timeout: "5",
           playBeep: "true",
-          finishOnKey: '', // Evitar terminar con la tecla '#'
+          finishOnKey: '',
           recordingStatusCallback: "/recording-status"
         });
         
