@@ -175,6 +175,25 @@ Para probar el sistema:
    artillery run tests/load-tests.yml
    ```
 
+## Validación de Datos
+
+El sistema incluye un robusto sistema de validación que maneja diferentes tipos de webhooks de Telnyx:
+
+### Rutas GET (query parameters)
+- `/welcome`: Valida CallSid en query string
+- `/menu-selection`: Valida CallSid y Digits en query string  
+- `/expediente`: Valida CallSid, Digits y SpeechResult en query string
+- `/procesar-opcion`: Valida CallSid y Digits en query string
+
+### Rutas POST (body parameters)  
+- `/procesar-grabacion`: Valida CallSid, RecordingUrl y RecordingSid en body
+- `/recording-status`: Valida RecordingSid, RecordingStatus y RecordingUrl en body
+
+### Validación Híbrida
+Algunas rutas aceptan parámetros tanto en query como en body para mayor flexibilidad:
+- Rutas de grabación pueden recibir datos en cualquier formato
+- El sistema valida automáticamente la presencia de parámetros requeridos
+
 ## Mejores Prácticas
 
 - **Mensajes concisos**: Mantén los mensajes de voz claros y breves
@@ -182,3 +201,4 @@ Para probar el sistema:
 - **Manejo de errores**: Siempre proporciona una ruta alternativa en caso de error
 - **Confirmación**: Confirma las acciones importantes con el usuario
 - **Opciones de salida**: Permite al usuario volver al menú principal o hablar con un agente
+- **Validación robusta**: Utiliza el middleware de validación para garantizar integridad de datos
