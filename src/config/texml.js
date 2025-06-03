@@ -53,5 +53,11 @@ module.exports = {
   },
   
   // Token de administrador
-  adminToken: process.env.ADMIN_TOKEN || 'admin'
+  adminToken: process.env.ADMIN_TOKEN || (() => {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ADMIN_TOKEN debe estar configurado en producción');
+    }
+    console.warn('⚠️  ADVERTENCIA: Usando token admin por defecto. Configure ADMIN_TOKEN en .env');
+    return 'dev-admin-token-change-this';
+  })()
 };

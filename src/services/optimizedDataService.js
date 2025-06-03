@@ -6,11 +6,16 @@
 // Importar servicios y módulos
 const TelnyxService = require('./telnyxService');
 const telnyxService = new TelnyxService();
+const monitoring = require('../utils/monitoring');
 
 // Caché simple en memoria para expedientes frecuentes
 // En un entorno de producción, considerar Redis para caché distribuido
 const expedienteCache = new Map();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutos en milisegundos
+const MAX_CACHE_SIZE = 100; // Límite máximo de items en caché
+
+// Map para almacenar timeouts y poder cancelarlos si es necesario
+const cacheTimers = new Map();
 
 /**
  * Verifica si el dato está en caché y es válido
@@ -31,7 +36,35 @@ function checkCache(expediente) {
   }
   
   console.log(`✅ Datos obtenidos de caché para expediente: ${expediente}`);
+  monitoring.trackExpediente('cached', expediente);
   return cached.data;
+}
+
+/**
+ * Limpia los items más antiguos si el caché excede el tamaño máximo
+ */
+function evictOldestItems() {
+  if (expedienteCache.size <= MAX_CACHE_SIZE) return;
+  
+  // Convertir a array y ordenar por fecha de creación
+  const entries = Array.from(expedienteCache.entries())
+    .sort((a, b) => a[1].created - b[1].created);
+  
+  // Eliminar el 20% más antiguo
+  const toRemove = Math.floor(expedienteCache.size * 0.2);
+  for (let i = 0; i < toRemove; i++) {
+    const [key] = entries[i];
+    expedienteCache.delete(key);
+    
+    // Cancelar timer si existe
+    const timer = cacheTimers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      cacheTimers.delete(key);
+    }
+  }
+  
+  console.log(`🧹 Limpieza de caché: ${toRemove} items antiguos eliminados`);
 }
 
 /**
@@ -40,6 +73,15 @@ function checkCache(expediente) {
  * @param {Object} data - Datos a almacenar
  */
 function storeInCache(expediente, data) {
+  // Limpiar timer anterior si existe
+  const existingTimer = cacheTimers.get(expediente);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+  
+  // Verificar tamaño del caché antes de agregar
+  evictOldestItems();
+  
   expedienteCache.set(expediente, {
     data,
     created: Date.now(),
@@ -48,11 +90,14 @@ function storeInCache(expediente, data) {
   
   console.log(`✅ Datos almacenados en caché para expediente: ${expediente}`);
   
-  // Programar eliminación automática
-  setTimeout(() => {
+  // Programar eliminación automática con referencia al timer
+  const timer = setTimeout(() => {
     expedienteCache.delete(expediente);
-    console.log(`🧹 Caché limpiado para expediente: ${expediente}`);
+    cacheTimers.delete(expediente);
+    console.log(`🧹 Caché expirado y limpiado para expediente: ${expediente}`);
   }, CACHE_TTL);
+  
+  cacheTimers.set(expediente, timer);
 }
 
 /**
@@ -287,9 +332,26 @@ function getCacheStats() {
   };
 }
 
+/**
+ * Limpia todos los timers al cerrar la aplicación
+ */
+function cleanupTimers() {
+  console.log('🧹 Limpiando todos los timers del caché...');
+  for (const [key, timer] of cacheTimers.entries()) {
+    clearTimeout(timer);
+  }
+  cacheTimers.clear();
+  expedienteCache.clear();
+}
+
+// Limpiar timers cuando el proceso se cierre
+process.on('SIGINT', cleanupTimers);
+process.on('SIGTERM', cleanupTimers);
+
 module.exports = {
   consultaUnificada,
   formatearDatosParaIVR,
   clearCache,
-  getCacheStats
+  getCacheStats,
+  cleanupTimers
 };

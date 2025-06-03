@@ -1,17 +1,25 @@
 const axios = require('axios');
-
-// Deshabilita la validación de certificados TLS (solo para desarrollo)
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const https = require('https');
 
 class AxiosService {
   constructor(baseURL) {
-    this.api = axios.create({
+    const config = {
       baseURL,
       withCredentials: false,
       headers: {
         'Content-Type': 'application/json'
       }
-    });
+    };
+
+    // Solo deshabilitar verificación TLS en desarrollo si está explícitamente configurado
+    if (process.env.NODE_ENV === 'development' && process.env.ALLOW_INSECURE_TLS === 'true') {
+      console.warn('⚠️  ADVERTENCIA: Verificación TLS deshabilitada. Solo usar en desarrollo.');
+      config.httpsAgent = new https.Agent({
+        rejectUnauthorized: false
+      });
+    }
+
+    this.api = axios.create(config);
   }
 
   /**
