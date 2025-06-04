@@ -98,11 +98,11 @@ class TransferService {
     ));
     
     // Configurar transferencia
-    const dialElement = XMLBuilder.addDial({
+    const dialElement = XMLBuilder.addDial(targetNumber, {
       callerId: config.transfer.callerId || callerNumber,
       timeout: config.transfer.timeout || "30",
       timeLimit: config.transfer.timeLimit || "3600"
-    }, targetNumber);
+    });
     
     elements.push(dialElement);
     
