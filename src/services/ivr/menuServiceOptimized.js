@@ -1,36 +1,37 @@
-// src/services/ivr/menuService.js - VERSIÓN CORREGIDA CON FILTRADO POR ESTATUS
+// src/services/ivr/menuServiceOptimized.js - VERSIÓN OPTIMIZADA PARA COLABORADORES
 const XMLBuilder = require('../../texml/helpers/xmlBuilder');
 const config = require('../../config/texml');
 const SessionService = require('./sessionService');
 const { hexToColorName } = require('../../utils/colorConverter');
 const { formatearFechaParaIVR } = require('../../utils/dateFormatter');
 
-class MenuService {
+class MenuServiceOptimized {
   // Función para formatear el expediente en grupos de dos dígitos
   formatearExpediente(expediente) {
     return expediente.match(/.{1,2}/g).join(' ');
   }
 
-  // Función para generar mensaje descriptivo según el estatus
+  // Función para generar mensaje descriptivo según el estatus (versión optimizada)
   getStatusMessage(estatus) {
-    switch(estatus) {
+    switch (estatus) {
       case 'A Contactar':
-        return 'la unidad se encuentra rumbo al origen de la asistencia con nuestro usuario';
+        return 'la unidad está en camino al punto de origen del servicio';
       case 'En Proceso':
-        return 'la unidad se encuentra rumbo al destino de nuestro usuario';
+        return 'la unidad está trasladando al usuario hacia su destino';
       case 'Concluido':
-        return 'ha sido concluido exitosamente';
+        return 'el servicio ha finalizado correctamente';
       case 'Cancelado':
-        return 'ha sido cancelado';
+        return 'el servicio ha sido cancelado';
       case 'Servicio Muerto':
-        return 'se encuentra en estado de servicio muerto';
+        return 'la unidad está en un servicio no ejecutado (servicio muerto)';
       default:
-        return `se encuentra actualmente en estado ${estatus}`;
+        return `la unidad se encuentra actualmente en estado "${estatus}"`;
     }
   }
+
   buildWelcomeMenu() {
     const sayElement = XMLBuilder.addSay(
-      "Hola! Seguimiento a expediente presione 1, Cotizar un servicio presione 2.",
+      "Seguimiento expedientes presione 1, Cotizaciones presione 2",
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
@@ -45,7 +46,7 @@ class MenuService {
     });
     
     const timeoutSay = XMLBuilder.addSay(
-      "No se detectó una opción válida.",
+      "Opción no válida",
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
@@ -60,7 +61,7 @@ class MenuService {
   
   buildExpedienteRequestMenu() {
     const sayElement = XMLBuilder.addSay(
-      "Proporciona el número de expediente y despues la tecla GATO",
+      "Digita el Número de expediente y la tecla gato",
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
@@ -75,7 +76,7 @@ class MenuService {
     });
     
     const timeoutSay = XMLBuilder.addSay(
-      "No se detectó ningún número.",
+      "No se detectó número",
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
@@ -88,7 +89,7 @@ class MenuService {
     ]);
   }
 
-  // NUEVO: Función para determinar qué menús mostrar según el estatus
+  // Determinar qué menús mostrar según el estatus
   determineMenuOptions(datos) {
     const estatus = datos.datosGenerales?.estatus;
     const options = {
@@ -103,7 +104,6 @@ class MenuService {
         break;
         
       case 'Cancelado':
-        // No mostrar ningún menú
         options.showLocation = false;
         options.showTimes = false;
         break;
@@ -139,33 +139,29 @@ class MenuService {
     // Determinar qué mostrar según el estatus
     const displayOptions = this.determineMenuOptions(datos);
     
-    // Opción 1: Información general del expediente (siempre se muestra)
+    // Menú claro pero sin exceso de palabras
     if (datos.datosGenerales && Object.keys(datos.datosGenerales).length > 0) {
-      menuOptions.push("Presione uno para información general del expediente");
+      menuOptions.push("digita uno para información general");
       validDigits += '1';
     }
     
-    // Opción 2: Costos (siempre se muestra si hay datos)
     if (datos.costos && Object.keys(datos.costos).length > 0) {
       menuOptions.push("dos para costos");
       validDigits += '2';
     }
     
-    // Opción 3: Tiempos (solo según estatus)
     if (displayOptions.showTimes && datos.tiempos && Object.keys(datos.tiempos).length > 0) {
       menuOptions.push("tres para tiempos");
       validDigits += '3';
     }
     
-    // Opción 4: Ubicación y tiempo de llegada (solo según estatus)
     if (displayOptions.showLocation && datos.ubicacion && Object.keys(datos.ubicacion).length > 0) {
-      menuOptions.push("cuatro para ubicación y tiempo de llegada");
+      menuOptions.push("cuatro para ubicación");
       validDigits += '4';
     }
 
-    // Opción 5: Datos de la unidad operativa (siempre se muestra si hay datos)
     if (datos.unidad && Object.keys(datos.unidad).length > 0) {
-      menuOptions.push("cinco para datos de la unidad");
+      menuOptions.push("cinco para datos de unidad");
       validDigits += '5';
     }
     
@@ -183,14 +179,15 @@ class MenuService {
       const estatus = datos.datosGenerales?.estatus || 'Desconocido';
       
       // Obtener el nombre del cliente y limpiarlo de espacios extra
-      const nombre = datos.datosGenerales?.nombre?.trim() || 'Cliente no especificado';
+      const nombre = datos.datosGenerales?.nombre?.trim() || 'Sin nombre';
       
       // Formatear el número de expediente para que se lea por pares
       const expedienteFormateado = expediente.match(/.{1,2}/g).join(' ');
       
+      // Mensaje directo pero claro
       const statusMessage = this.getStatusMessage(estatus);
       const introSay = XMLBuilder.addSay(
-        `Perfecto, el expediente ${expedienteFormateado} ${statusMessage}`,
+        `Expediente ${expedienteFormateado}, ${statusMessage}`,
         { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
       );
       responseElements.push(introSay);
@@ -198,7 +195,7 @@ class MenuService {
     }
     
     const menuSay = XMLBuilder.addSay(
-      menuOptions.join('. '),
+      menuOptions.join(', '),
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
     
@@ -207,7 +204,7 @@ class MenuService {
       method: 'POST',
       input: 'dtmf',
       numDigits: '1',
-      timeout: '15',
+      timeout: '8',
       validDigits: validDigits,
       nested: menuSay
     });
@@ -216,160 +213,217 @@ class MenuService {
     
     return XMLBuilder.buildResponse(responseElements);
   }
+
+  // Función para acortar nombres de clientes
+  getShortClientName(nombre) {
+    if (!nombre || nombre === 'Sin nombre') return 'sin nombre';
+    
+    // Si el nombre es muy largo, tomar solo nombre y primer apellido
+    const palabras = nombre.split(' ');
+    if (palabras.length > 2) {
+      return `${palabras[0]} ${palabras[1]}`;
+    }
+    return nombre;
+  }
+
+  // Función para acortar estatus
+  getShortStatus(estatus) {
+    const statusMap = {
+      'A Contactar': 'por contactar',
+      'En Proceso': 'en proceso',
+      'Concluido': 'concluido',
+      'Cancelado': 'cancelado',
+      'Servicio Muerto': 'muerto'
+    };
+    
+    return statusMap[estatus] || estatus.toLowerCase();
+  }
   
   buildGeneralInfoMenu(datos, callSid, expediente) {
     const datosGenerales = datos.datosGenerales;
-    let message = `Información general de ${this.formatearExpediente(expediente)}. `;
+    
+    // Información clara sin repetir "información general de..."
+    let message = '';
     
     if (datosGenerales.nombre) {
-      message += `El expediente se encuentra a nombre de ${datosGenerales.nombre}. `;
+      message += `El expediente se encuentra a nombre de ${this.getShortClientName(datosGenerales.nombre)}. `;
     }
     
     if (datosGenerales.vehiculo) {
-      message += `Vehículo: ${datosGenerales.vehiculo}. `;
+      const vehiculo = this.formatVehicleInfo(datosGenerales.vehiculo);
+      message += `Vehículo ${vehiculo}. `;
     }
     
     if (datosGenerales.estatus) {
-      message += `Estado: ${datosGenerales.estatus}. `;
+      message += `Estado ${this.getShortStatus(datosGenerales.estatus)}. `;
     }
     
     if (datosGenerales.servicio) {
-      message += `Servicio: ${datosGenerales.servicio}. `;
+      message += `Servicio ${datosGenerales.servicio.toLowerCase()}. `;
     }
     
     // Destino omitido por solicitud del usuario
     
     const sayInfo = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
-    return XMLBuilder.buildResponse([sayInfo, pause, redirect]);
+    return XMLBuilder.buildResponse([sayInfo, redirect]);
+  }
+
+  // Simplificar información del vehículo
+  formatVehicleInfo(vehiculo) {
+    if (!vehiculo) return '';
+    
+    // Si viene en formato "Fiat 500-2011 Blanco", separar año
+    const parts = vehiculo.split('-');
+    if (parts.length === 2) {
+      const [marca_modelo, resto] = parts;
+      const year = resto.split(' ')[0];
+      return `${marca_modelo} ${year}`;
+    }
+    
+    return vehiculo;
+  }
+
+  // Acortar destino para que sea más legible
+  getShortDestination(destino) {
+    if (!destino) return '';
+    
+    // Tomar solo la calle y colonia si es muy largo
+    const parts = destino.split(',');
+    if (parts.length > 3) {
+      return `${parts[0].trim()}, ${parts[1].trim()}`;
+    }
+    
+    return destino;
   }
   
   buildCostsMenu(datos, callSid, expediente) {
     const costos = datos.costos;
-    let message = `el desglose de ${this.formatearExpediente(expediente)}, es. `;
+    let message = '';
     
     if (costos.costo) {
-      message += `El costo total es ${costos.costo}. `;
+      message += `Costo total ${costos.costo}. `;
     }
     
     if (costos.km) {
-      message += `Distancia: ${costos.km} kilómetros. `;
+      message += `Distancia ${costos.km} kilómetros. `;
     }
     
     if (costos.banderazo) {
-      message += `Banderazo: ${costos.banderazo}. `;
+      message += `Banderazo ${costos.banderazo}. `;
     }
     
     if (costos.costoKm) {
-      message += `Costo por kilómetro: ${costos.costoKm}. `;
+      message += `Costo por kilómetro ${costos.costoKm}. `;
     }
     
     if (costos.casetaCubierta > 0) {
-      message += `Caseta cubierta: ${costos.casetaCubierta} pesos. `;
+      message += `Caseta cubierta ${costos.casetaCubierta} pesos. `;
     }
     
     if (costos.maniobras > 0) {
-      message += `Maniobras: ${costos.maniobras} pesos. `;
+      message += `Maniobras ${costos.maniobras} pesos. `;
     }
     
     const sayCosts = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
-    return XMLBuilder.buildResponse([sayCosts, pause, redirect]);
+    return XMLBuilder.buildResponse([sayCosts, redirect]);
   }
   
-  // MODIFICADO: Manejo mejorado para tiempos que podrían ser null
   buildTimesMenu(datos, callSid, expediente) {
     const tiempos = datos.tiempos;
-    let message = `los tiempos de ${this.formatearExpediente(expediente)} son. `;
+    let message = '';
     
     if (tiempos.tc && tiempos.tc !== null) {
-      // Formatear tiempo de contacto
       const tiempoContactoFormateado = formatearFechaParaIVR(tiempos.tc);
-      message += `Contacto el ${tiempoContactoFormateado}. `;
+      message += `Contacto ${tiempoContactoFormateado}. `;
     }
     
     if (tiempos.tt && tiempos.tt !== null) {
-      // Formatear tiempo de término
       const tiempoTerminoFormateado = formatearFechaParaIVR(tiempos.tt);
-      message += `Término el ${tiempoTerminoFormateado}. `;
+      message += `Término ${tiempoTerminoFormateado}. `;
     }
     
-    if ((!tiempos.tc || tiempos.tc === null) && (!tiempos.tt || tiempos.tt === null)) {
-      message += `No hay información de tiempos disponible en este momento. `;
+    if (!message) {
+      message = 'No hay información de tiempos disponible.';
     }
     
     const sayTimes = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
-    return XMLBuilder.buildResponse([sayTimes, pause, redirect]);
+    return XMLBuilder.buildResponse([sayTimes, redirect]);
+  }
+
+  // Formatear tiempo más corto
+  formatTimeShort(timestamp) {
+    try {
+      const date = new Date(timestamp);
+      const hora = date.getHours();
+      const minutos = date.getMinutes().toString().padStart(2, '0');
+      return `${hora}:${minutos}`;
+    } catch {
+      return 'hora no disponible';
+    }
   }
   
-  // MODIFICADO: Manejo mejorado para ubicación que podría ser null
   buildLocationMenu(datos, callSid, expediente) {
     const ubicacion = datos.ubicacion;
-    let message = `los datos de ${this.formatearExpediente(expediente)} son. `;
+    let message = '';
     
     if (ubicacion.tiempoRestante && ubicacion.tiempoRestante !== null) {
-      message += `Tiempo estimado de llegada: ${ubicacion.tiempoRestante}. `;
+      message += `Tiempo estimado de llegada ${ubicacion.tiempoRestante}. `;
     }
     
     if (ubicacion.ubicacionGrua && ubicacion.ubicacionGrua !== null) {
-      message += `La unidad está en camino. `;
+      message += 'La unidad está en camino. ';
     }
     
-    if ((!ubicacion.tiempoRestante || ubicacion.tiempoRestante === null) && 
-        (!ubicacion.ubicacionGrua || ubicacion.ubicacionGrua === null)) {
-      message += `No hay información de ubicación disponible en este momento. `;
+    if (!message) {
+      message = 'No hay información de ubicación disponible.';
     }
     
     const sayLocation = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-    const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
     const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
     
-    return XMLBuilder.buildResponse([sayLocation, pause, redirect]);
+    return XMLBuilder.buildResponse([sayLocation, redirect]);
   }
 
   buildUnidadOperativaMenu(datos, callSid, expediente) {
-      const unidad = datos.unidad;
-      let message = `Datos de la unidad operativa del expediente ${this.formatearExpediente(expediente)}. `;
+    const unidad = datos.unidad;
+    let message = '';
 
-      if (unidad) {
-        if (unidad.operador) {
-          message += `Operador: ${unidad.operador}. `;
-        }
-        if (unidad.tipoGrua) {
-          message += `Tipo de Grúa: ${unidad.tipoGrua}. `;
-        }
-        if (unidad.color) {
-          // Convertir el código hexadecimal a nombre de color legible
-          const colorNombre = hexToColorName(unidad.color);
-          message += `Color: ${colorNombre}. `;
-        }
-        if (unidad.unidadOperativa) {
-          // Extraer solo el número al inicio de la cadena
-          const numeroEconomico = unidad.unidadOperativa.match(/^\d+/) ? unidad.unidadOperativa.match(/^\d+/)[0] : unidad.unidadOperativa;
-          message += `Número Económico: ${numeroEconomico},  `;
-        }
-        // Placas omitidas por solicitud del usuario
-        if (Object.keys(unidad).length === 0 || 
-            (!unidad.operador && !unidad.tipoGrua && !unidad.color && !unidad.unidadOperativa)) {
-          message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
-        }
-      } else {
-        message = `No hay información de la unidad operativa disponible para el expediente ${expediente}. `;
+    if (unidad) {
+      if (unidad.operador) {
+        message += `Operador ${unidad.operador}. `;
       }
+      if (unidad.tipoGrua) {
+        message += `Tipo de grúa ${unidad.tipoGrua}. `;
+      }
+      if (unidad.color) {
+        const colorNombre = hexToColorName(unidad.color);
+        message += `Color ${colorNombre}. `;
+      }
+      if (unidad.unidadOperativa) {
+        const numeroEconomico = unidad.unidadOperativa.match(/^\d+/) ? 
+          unidad.unidadOperativa.match(/^\d+/)[0] : unidad.unidadOperativa;
+        message += `Número económico ${numeroEconomico}. `;
+      }
+      // Placas omitidas por solicitud del usuario
       
-      const sayUnidad = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-      const pause = XMLBuilder.addSay(". ", { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
-      const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
-      
-      return XMLBuilder.buildResponse([sayUnidad, pause, redirect]);
+      if (!message) {
+        message = 'No hay información de la unidad operativa disponible.';
+      }
+    } else {
+      message = 'No hay información de la unidad operativa disponible.';
+    }
+    
+    const sayUnidad = XMLBuilder.addSay(message, { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' });
+    const redirect = XMLBuilder.addRedirect(`/menu-expediente`, 'POST');
+    
+    return XMLBuilder.buildResponse([sayUnidad, redirect]);
   }
 }
 
-module.exports = new MenuService();
+module.exports = new MenuServiceOptimized();

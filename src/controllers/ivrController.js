@@ -2,6 +2,7 @@
 const XMLBuilder = require('../texml/helpers/xmlBuilder');
 const redisService = require('../services/redisService');
 const menuService = require('../services/ivr/menuService');
+const menuServiceOptimized = require('../services/ivr/menuServiceOptimized');
 const expedienteService = require('../services/ivr/expedienteService');
 const sessionService = require('../services/ivr/sessionService');
 const responseService = require('../services/ivr/responseService');
@@ -9,10 +10,17 @@ const monitoring = require('../utils/monitoring');
 const option2Controller = require('./option2Controller');
 
 class IVRController {
+  // Función helper para seleccionar el servicio de menú correcto
+  getMenuService() {
+    const isOptimized = process.env.IVR_OPTIMIZED_MODE === 'true';
+    return isOptimized ? menuServiceOptimized : menuService;
+  }
+
   async handleWelcome(req, res) {
     try {
       monitoring.trackSessionEvent('created', 'main-menu');
-      const responseXML = menuService.buildWelcomeMenu();
+      const selectedMenuService = this.getMenuService();
+      const responseXML = selectedMenuService.buildWelcomeMenu();
       res.header('Content-Type', 'application/xml');
       res.send(responseXML);
     } catch (error) {
@@ -42,7 +50,8 @@ class IVRController {
   async requestExpediente(req, res) {
     try {
       console.log('📞 Solicitando número de expediente');
-      const responseXML = menuService.buildExpedienteRequestMenu();
+      const selectedMenuService = this.getMenuService();
+      const responseXML = selectedMenuService.buildExpedienteRequestMenu();
       res.header('Content-Type', 'application/xml');
       res.send(responseXML);
     } catch (error) {
@@ -73,15 +82,16 @@ class IVRController {
         
         console.log(`✅ Datos guardados, llamando a buildExpedienteMenu...`);
         
-        // Llamar a menuService.buildExpedienteMenu para construir el menú
+        // Llamar al servicio de menú seleccionado para construir el menú
         // Esto asegura que la lógica de "mostrar una vez" se aplique desde el inicio.
-        const responseXML = await menuService.buildExpedienteMenu(
+        const selectedMenuService = this.getMenuService();
+        const responseXML = await selectedMenuService.buildExpedienteMenu(
           result.datos,
           callSid,
           expediente
         );
         
-        console.log(`📄 XML generado por menuService.buildExpedienteMenu`);
+        console.log(`📄 XML generado por el servicio de menú seleccionado`);
         // console.log(responseXML); // Puede ser muy verboso
         res.header('Content-Type', 'application/xml');
         res.send(responseXML);
@@ -120,7 +130,8 @@ class IVRController {
       
       const { expediente, datos } = sessionData;
       
-      const responseXML = await menuService.buildExpedienteMenu( // Added await
+      const selectedMenuService = this.getMenuService();
+      const responseXML = await selectedMenuService.buildExpedienteMenu( // Added await
         datos, 
         callSid, 
         expediente
@@ -154,6 +165,7 @@ class IVRController {
       }
       
       const { expediente, datos } = sessionData;
+      const selectedMenuService = this.getMenuService();
       
       let responseXML;
       
@@ -161,22 +173,22 @@ class IVRController {
       switch(option) {
         case '1':
           // Opción 1: Información general del expediente (NUEVO)
-          responseXML = menuService.buildGeneralInfoMenu(datos, callSid, expediente);
+          responseXML = selectedMenuService.buildGeneralInfoMenu(datos, callSid, expediente);
           break;
         case '2':
           // Opción 2: Costos (se mantiene)
-          responseXML = menuService.buildCostsMenu(datos, callSid, expediente);
+          responseXML = selectedMenuService.buildCostsMenu(datos, callSid, expediente);
           break;
         case '3':
           // Opción 3: Tiempos del servicio (antes era opción 4)
-          responseXML = menuService.buildTimesMenu(datos, callSid, expediente);
+          responseXML = selectedMenuService.buildTimesMenu(datos, callSid, expediente);
           break;
         case '4':
           // Opción 4: Ubicación (antes era opción 3)
-          responseXML = menuService.buildLocationMenu(datos, callSid, expediente);
+          responseXML = selectedMenuService.buildLocationMenu(datos, callSid, expediente);
           break;
         case '5': // NUEVO: Datos de la unidad operativa
-          responseXML = menuService.buildUnidadOperativaMenu(datos, callSid, expediente);
+          responseXML = selectedMenuService.buildUnidadOperativaMenu(datos, callSid, expediente);
           break;
         case '9':
           // Nueva consulta
@@ -189,7 +201,7 @@ class IVRController {
           break;
         default:
           // Opción inválida - volver al menú
-          responseXML = await menuService.buildExpedienteMenu( // Added await
+          responseXML = await selectedMenuService.buildExpedienteMenu( // Added await
             datos, 
             callSid, 
             expediente
@@ -206,12 +218,12 @@ class IVRController {
   // Método auxiliar para generar opciones del menú - ACTUALIZADO
   // Reemplazar SOLO el método generateMenuOptions en ivrController.js
   generateMenuOptions(datos) {
-    const menuService = require('../services/ivr/menuService');
+    const selectedMenuService = this.getMenuService();
     let menuOptions = [];
     let validDigits = '';
     
-    // Usar la lógica del menuService para determinar qué mostrar
-    const displayOptions = menuService.determineMenuOptions(datos);
+    // Usar la lógica del servicio de menú seleccionado para determinar qué mostrar
+    const displayOptions = selectedMenuService.determineMenuOptions(datos);
     
     // Opción 1: Información general del expediente
     if (datos.datosGenerales && Object.keys(datos.datosGenerales).length > 0) {

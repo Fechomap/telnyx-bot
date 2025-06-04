@@ -91,12 +91,43 @@ class ResponseService {
   }
   
   buildNewQueryResponse() {
-    const say = XMLBuilder.addSay(
-      "Iniciando nueva consulta.",
+    // Determinar el mensaje según el modo IVR
+    const isOptimized = process.env.IVR_OPTIMIZED_MODE === 'true';
+    const message = isOptimized 
+      ? "Digita el Número de expediente y la tecla gato"
+      : "Proporciona el número de expediente y despues la tecla GATO";
+    
+    const sayElement = XMLBuilder.addSay(
+      message,
       { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
     );
+    
+    const gatherElement = XMLBuilder.addGather({
+      action: '/validar-expediente',
+      method: 'GET',
+      input: 'dtmf',
+      finishOnKey: '#',
+      timeout: '10',
+      validDigits: '0123456789',
+      nested: sayElement
+    });
+    
+    const timeoutMessage = isOptimized 
+      ? "No se detectó número"
+      : "No se detectó ningún número.";
+    
+    const timeoutSay = XMLBuilder.addSay(
+      timeoutMessage,
+      { voice: 'Azure.es-MX-DaliaNeural', language: 'es-MX' }
+    );
+    
     const redirect = XMLBuilder.addRedirect('/solicitar-expediente', 'GET');
-    return XMLBuilder.buildResponse([say, redirect]);
+    
+    return XMLBuilder.buildResponse([
+      gatherElement,
+      timeoutSay,
+      redirect
+    ]);
   }
   
   buildTransferResponse() {
