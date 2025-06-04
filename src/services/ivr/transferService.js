@@ -93,7 +93,7 @@ class TransferService {
     
     // Mensaje antes de transferir
     elements.push(XMLBuilder.addSay(
-      "Transfiriéndole con un ejecutivo de ventas para su cotización.",
+      "Transfiriéndole con un asesor para su cotización.",
       { voice: "Azure.es-MX-DaliaNeural", language: "es-MX" }
     ));
     
