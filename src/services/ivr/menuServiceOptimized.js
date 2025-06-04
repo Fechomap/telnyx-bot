@@ -303,7 +303,7 @@ class MenuServiceOptimized {
     let message = '';
     
     if (costos.costo) {
-      message += `Costo total ${costos.costo}. `;
+      message += `Costo total ${costos.costo} pesos más IVA. `;
     }
     
     if (costos.km) {
@@ -319,7 +319,11 @@ class MenuServiceOptimized {
     }
     
     if (costos.casetaCubierta > 0) {
-      message += `Caseta cubierta ${costos.casetaCubierta} pesos. `;
+      message += `Casetas que cubre la asistencia ${costos.casetaCubierta} pesos. `;
+    }
+    
+    if (costos.casetaCobro > 0) {
+      message += `Casetas que tiene que pagar el usuario ${costos.casetaCobro} pesos. `;
     }
     
     if (costos.maniobras > 0) {

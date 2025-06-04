@@ -251,7 +251,7 @@ class MenuService {
     let message = `el desglose de ${this.formatearExpediente(expediente)}, es. `;
     
     if (costos.costo) {
-      message += `El costo total es ${costos.costo}. `;
+      message += `El costo total es ${costos.costo} pesos más IVA. `;
     }
     
     if (costos.km) {
@@ -267,7 +267,11 @@ class MenuService {
     }
     
     if (costos.casetaCubierta > 0) {
-      message += `Caseta cubierta: ${costos.casetaCubierta} pesos. `;
+      message += `Casetas que cubre la asistencia: ${costos.casetaCubierta} pesos. `;
+    }
+    
+    if (costos.casetaCobro > 0) {
+      message += `Casetas que tiene que pagar el usuario: ${costos.casetaCobro} pesos. `;
     }
     
     if (costos.maniobras > 0) {
