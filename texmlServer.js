@@ -8,10 +8,13 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const compression = require('compression');
+const path = require('path');
 const ivrRoutes = require('./src/routes/ivrRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
 const redisService = require('./src/services/redisService');
 const config = require('./src/config/texml');
 const monitoring = require('./src/utils/monitoring');
+const { authenticateAdminPage } = require('./src/middleware/adminAuth');
 
 // Inicializar aplicación Express
 const app = express();
@@ -41,6 +44,17 @@ if (process.env.NODE_ENV !== 'test') {
     next();
   });
 }
+
+// Servir archivos estáticos para el panel de administración
+app.use('/admin/static', express.static(path.join(__dirname, 'public')));
+
+// Ruta del panel de administración
+app.get('/admin', authenticateAdminPage, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// API routes para administración
+app.use('/admin', adminRoutes);
 
 // Health check endpoint mejorado
 app.get('/health', async (req, res) => {
